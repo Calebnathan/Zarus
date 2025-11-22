@@ -385,6 +385,16 @@ namespace Zarus.Map
             {
                 position = mouse.position.ReadValue();
                 clicked = mouse.leftButton.wasPressedThisFrame;
+                
+                // WebGL fallback: If Input System fails, use legacy Input
+                #if UNITY_WEBGL && !UNITY_EDITOR
+                if (position == Vector2.zero)
+                {
+                    position = Input.mousePosition;
+                    clicked = Input.GetMouseButtonDown(0);
+                }
+                #endif
+                
                 return true;
             }
 
@@ -399,6 +409,13 @@ namespace Zarus.Map
                     return true;
                 }
             }
+            
+            // WebGL ultimate fallback: Use legacy Input system
+            #if UNITY_WEBGL && !UNITY_EDITOR
+            position = Input.mousePosition;
+            clicked = Input.GetMouseButtonDown(0);
+            return true;
+            #endif
 
             return false;
         }
