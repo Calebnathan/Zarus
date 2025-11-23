@@ -167,6 +167,13 @@ Assembly definition files (.asmdef) are JSON; use standard file tools:
 5. **Test incrementally** — Make small changes and verify with console/tests
 6. **URI formats** — Scripts accept `unity://path/Assets/...`, `file://...`, or just `Assets/...`
 
+## Commit conventions
+
+- Use conventional prefixes in the form `type: short summary`.
+- Common types: `feat` (user-visible functionality), `fix` (bug fixes), `docs` (documentation only), `chore` (maintenance/config), `tool` (automation/tooling changes), and `refactor`, `test`, or `style` when appropriate.
+- Keep commits logically scoped; avoid mixing unrelated work under one message.
+- Reference assets/files in the summary only when it improves clarity.
+
 ### Troubleshooting
 
 **"No Unity Editor instances found"**
