@@ -262,12 +262,66 @@
     margin-top: -2px;
 }
 
+.hud-cure-progress {
+    min-width: 260px;
+}
+
+.hud-cure-progress__bar {
+    width: 100%;
+    height: 18px;
+    margin-top: var(--spacing-xs);
+    margin-bottom: var(--spacing-xs);
+}
+
+.hud-outpost-summary {
+    flex-direction: column;
+    align-items: flex-start;
+    min-width: 240px;
+}
+
+.hud-province-actions {
+    background-color: rgba(8, 16, 30, 0.9);
+    border-color: var(--surface-border);
+    border-width: var(--border-width);
+    border-radius: var(--border-radius-small);
+    padding: var(--spacing-md);
+    margin: var(--spacing-xs);
+    flex-direction: column;
+    min-width: 320px;
+}
+
+.hud-outpost-status--none {
+    color: var(--text-secondary);
+}
+
+.hud-outpost-status--active {
+    color: var(--color-success);
+}
+
+.hud-outpost-status--disabled {
+    color: var(--color-warning);
+}
+
+.hud-button {
+    background-color: var(--color-primary);
+    border-color: var(--color-primary);
+    border-width: 0;
+    border-radius: var(--border-radius-small);
+    color: rgb(3, 8, 16);
+    padding: var(--spacing-sm) var(--spacing-md);
+    -unity-font-style: bold;
+}
+
+.hud-button:disabled {
+    background-color: rgba(255, 255, 255, 0.15);
+    color: rgba(255, 255, 255, 0.4);
+}
+
 .hud-province-info {
     opacity: 0;
     translate: 0 16px;
     transition-property: opacity, translate;
     transition-duration: var(--transition-normal);
-    pointer-events: none;
     margin-top: var(--spacing-sm);
     align-self: flex-start;
 }
@@ -275,7 +329,6 @@
 .hud-province-info--visible {
     opacity: 1;
     translate: 0 0;
-    pointer-events: auto;
 }
 
 /* ========================================
@@ -315,6 +368,34 @@
     width: 100%;
     margin-bottom: var(--spacing-sm);
     min-height: 50px;
+}
+
+.end-stats {
+    width: 100%;
+    background-color: rgba(8, 16, 28, 0.85);
+    border-radius: var(--border-radius-small);
+    border-color: var(--surface-border);
+    border-top-width: 1px;
+    border-bottom-width: 1px;
+    border-left-width: 1px;
+    border-right-width: 1px;
+    padding: var(--spacing-md);
+    margin-bottom: var(--spacing-md);
+    flex-direction: column;
+}
+
+.end-stat {
+    font-size: var(--font-size-normal);
+    color: var(--text-secondary);
+    margin-bottom: var(--spacing-xs);
+}
+
+.end-outcome--victory {
+    border-color: var(--color-success);
+}
+
+.end-outcome--defeat {
+    border-color: var(--color-error);
 }
 
 /* ========================================
