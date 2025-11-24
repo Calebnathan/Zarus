@@ -9,8 +9,16 @@
 
     <ui:VisualElement name="EndMenuRoot" class="overlay-backdrop">
         <ui:VisualElement name="MenuPanel" class="menu-panel slide-up">
-            <ui:Label name="MenuTitle" class="menu-title" text="Mission Complete" />
-            <ui:Label name="MenuSubtitle" class="menu-subtitle" text="Review your path and jump back in." />
+            <ui:Label name="OutcomeTitleLabel" class="menu-title" text="MISSION COMPLETE" />
+            <ui:Label name="OutcomeSubtitleLabel" class="menu-subtitle" text="Review your path and jump back in." />
+
+            <ui:VisualElement name="OutcomeStats" class="end-stats">
+                <ui:Label name="StatsDaysLabel" class="end-stat" text="Days elapsed: --" />
+                <ui:Label name="StatsCureLabel" class="end-stat" text="Cure progress: --" />
+                <ui:Label name="StatsProvincesLabel" class="end-stat" text="Provinces saved: --" />
+                <ui:Label name="StatsOutpostsLabel" class="end-stat" text="Outposts: --" />
+                <ui:Label name="StatsZarLabel" class="end-stat" text="Budget remaining: --" />
+            </ui:VisualElement>
 
             <ui:VisualElement name="ButtonGroup" class="menu-button-group">
                 <ui:Button name="RestartButton" class="button button--primary menu-button" text="Restart" />

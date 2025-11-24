@@ -372,6 +372,30 @@
     min-height: 50px;
 }
 
+.end-stats {
+    width: 100%;
+    background-color: rgba(8, 16, 28, 0.85);
+    border-radius: var(--border-radius-small);
+    border: 1px solid var(--surface-border);
+    padding: var(--spacing-md);
+    margin-bottom: var(--spacing-md);
+    flex-direction: column;
+}
+
+.end-stat {
+    font-size: var(--font-size-normal);
+    color: var(--text-secondary);
+    margin-bottom: var(--spacing-xs);
+}
+
+.end-outcome--victory {
+    border-color: var(--color-success);
+}
+
+.end-outcome--defeat {
+    border-color: var(--color-error);
+}
+
 /* ========================================
    OVERLAY & BACKDROP
    ======================================== */

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Events;
 using Zarus.Map;
+using Zarus.UI;
 
 namespace Zarus.Systems
 {
@@ -28,6 +29,9 @@ namespace Zarus.Systems
 
         [SerializeField]
         private DayNightCycleController dayNightController;
+
+        [SerializeField]
+        private UIManager uiManager;
 
         [Header("Rates & Economy")]
         [SerializeField]
@@ -100,6 +104,8 @@ namespace Zarus.Systems
         private bool initialized;
         private bool cureCompleteRaised;
         private bool allProvincesFullyInfectedRaised;
+        private bool outcomeTriggered;
+        private int lastSimulatedDayIndex = 1;
 
         public IReadOnlyDictionary<string, ProvinceInfectionState> Provinces => provinces;
         public GlobalCureState GlobalState => globalState;
@@ -117,6 +123,11 @@ namespace Zarus.Systems
             if (dayNightController == null)
             {
                 dayNightController = FindFirstObjectByType<DayNightCycleController>();
+            }
+
+            if (uiManager == null)
+            {
+                uiManager = FindFirstObjectByType<UIManager>();
             }
 
             globalState = new GlobalCureState
@@ -157,6 +168,9 @@ namespace Zarus.Systems
         {
             provinces.Clear();
             initialized = false;
+            outcomeTriggered = false;
+            lastSimulatedDayIndex = 1;
+            GameOutcomeState.Reset();
 
             if (mapController == null)
             {
@@ -219,6 +233,8 @@ namespace Zarus.Systems
             {
                 return;
             }
+
+            lastSimulatedDayIndex = snapshot.DayIndex;
 
             if (!lastSnapshot.HasValue)
             {
@@ -299,6 +315,7 @@ namespace Zarus.Systems
             }
 
             UpdateGlobalCure(deltaHours);
+            EvaluateWinLoss(dayIndex);
 
             var allFullyInfected = fullyInfectedCount == provinces.Count && provinces.Count > 0;
             if (allFullyInfected && !allProvincesFullyInfectedRaised)
@@ -354,7 +371,7 @@ namespace Zarus.Systems
 
             RaiseGlobalStateChanged();
 
-            if (!cureCompleteRaised && Mathf.Approximately(globalState.CureProgress01, 1f))
+            if (!cureCompleteRaised && globalState.CureProgress01 >= 0.999f)
             {
                 cureCompleteRaised = true;
                 onCureCompleted?.Invoke();
@@ -414,6 +431,7 @@ namespace Zarus.Systems
 
             RaiseProvinceStateChanged(state);
             UpdateGlobalCure(0f);
+            EvaluateWinLoss(lastSimulatedDayIndex);
             return true;
         }
 
@@ -433,6 +451,59 @@ namespace Zarus.Systems
             }
 
             return false;
+        }
+
+        private void EvaluateWinLoss(int dayIndex)
+        {
+            if (outcomeTriggered || provinces.Count == 0)
+            {
+                return;
+            }
+
+            var fullyInfected = 0;
+            foreach (var state in provinces.Values)
+            {
+                if (state.IsFullyInfected)
+                {
+                    fullyInfected++;
+                }
+            }
+
+            var savedProvinces = Mathf.Max(0, provinces.Count - fullyInfected);
+
+            if (globalState.CureProgress01 >= 0.999f)
+            {
+                TriggerOutcome(GameOutcomeKind.Victory, dayIndex, savedProvinces, fullyInfected);
+            }
+            else if (fullyInfected == provinces.Count)
+            {
+                TriggerOutcome(GameOutcomeKind.Defeat, dayIndex, savedProvinces, fullyInfected);
+            }
+        }
+
+        private void TriggerOutcome(GameOutcomeKind outcome, int dayIndex, int savedProvinces, int fullyInfectedProvinces)
+        {
+            if (outcomeTriggered)
+            {
+                return;
+            }
+
+            outcomeTriggered = true;
+            GameOutcomeState.SetOutcome(outcome, globalState, dayIndex, savedProvinces, fullyInfectedProvinces);
+
+            if (uiManager == null)
+            {
+                uiManager = FindFirstObjectByType<UIManager>();
+            }
+
+            if (uiManager != null)
+            {
+                uiManager.ShowEndScreen();
+            }
+            else
+            {
+                Debug.LogWarning("[OutbreakSimulation] UIManager not found; cannot display End screen.");
+            }
         }
 
         private void RaiseProvinceStateChanged(ProvinceInfectionState state)
