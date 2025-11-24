@@ -65,13 +65,16 @@ namespace Zarus.Systems
         private string[] urbanHubRegionIds = { "ZAGP", "ZAWC", "ZAKZN" };
 
         [SerializeField, Min(1f)]
+        [Tooltip("Bonus multiplier applied to global research from urban hub outposts.")]
         private float urbanHubBonusMultiplier = 1.25f;
 
         [Header("Startup Settings")]
         [SerializeField]
+        [Tooltip("Randomized infection percentage seeded per province (0-1 range).")]
         private Vector2 initialInfectionRange = new Vector2(0.05f, 0.2f);
 
-        [SerializeField]
+        [SerializeField, Min(0)]
+        [Tooltip("Starting national ZAR budget for deploying outposts.")]
         private int startingZarBalance = 200;
 
         [Header("Events")]

@@ -366,7 +366,7 @@ Below is an ordered list of commits. Each commit is intentionally small and focu
     - `VirusRateConfig.BaseInfectionPerHour`: ~`0.01f`–`0.015f`.
     - `VirusRateConfig.DailyVirusGrowth`: ~`0.05f`–`0.08f`.
     - `OutpostRateConfig.LocalCurePerHour`: ~`0.02f`.
-    - `OutpostRateConfig.GlobalCurePerHourPerOutpost`: tuned so that with ~5–8 active outposts, cure reaches 100% after roughly 10–15 in‑game days.
+    - `OutpostRateConfig.GlobalCurePerHourPerOutpost`: tuned so that with ~5–8 active outposts, cure reaches 100% after roughly 10–15 in-game days.
     - `OutpostRateConfig.DiminishingReturnFactor`: `0.9f`.
     - `VirusRateConfig.OutpostDisableThreshold01`: `0.8f`.
     - `VirusRateConfig.FullyInfectedThreshold01`: `0.99f`.
@@ -376,8 +376,10 @@ Below is an ordered list of commits. Each commit is intentionally small and focu
   - Populate `urbanHubRegionIds` with IDs matching:
     - Gauteng (`ZAGP`)
     - Western Cape (`ZAWC`)
-    - KwaZulu‑Natal (`ZAKZN`)
-- **Update**: `FEATURE.md` (this file) if real‑world tuning deviates significantly, so designers know what each knob does.
+    - KwaZulu-Natal (`ZAKZN`)
+- **Update**: `FEATURE.md` (this file) if real-world tuning deviates significantly, so designers know what each knob does.
+
+Current defaults in `OutbreakSimulationController` land at: `BaseInfectionPerHour = 0.0125f`, `DailyVirusGrowth = 0.06f`, `LocalCurePerHour = 0.02f`, `GlobalCurePerHourPerOutpost = 0.01f`, `DiminishingReturnFactor = 0.9f`, `OutpostDisableThreshold01 = 0.8f`, `FullyInfectedThreshold01 = 0.99f`, `BaseCostR = 20`, `CostPerExistingOutpostR = 8`, and `startingZarBalance = 200`.
 
 **Agent notes:**
 - Tune primarily by adjusting rates in this controller; prefer not to touch `DayNightCycleController` unless session length feels very off.
