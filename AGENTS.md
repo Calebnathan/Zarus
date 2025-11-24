@@ -24,6 +24,7 @@ This repo targets Unity **6000.2.10f1**, URP 3D, Input System (see `Assets/Input
 - Use Input System-friendly APIs (already enabled project-wide).
 - Avoid touching generated folders or auto assets (meshes under `Map/Meshes`, etc.).
 - Document new workflows directly in this file to keep onboarding tight.
+- If a `FEATURE.md` exists in the repo, follow its implementation plan closely when adding or changing gameplay features.
 
 ## Commit conventions
 - Format: `type: summary`. Common types: `feat`, `fix`, `docs`, `chore`, `tool`, `refactor`, `test`, `style`.
