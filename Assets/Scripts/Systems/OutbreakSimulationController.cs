@@ -77,6 +77,11 @@ namespace Zarus.Systems
         [Tooltip("Starting national ZAR budget for deploying outposts.")]
         private int startingZarBalance = 200;
 
+        [Header("Diagnostics")]
+        [SerializeField]
+        [Tooltip("When enabled, prints a short daily summary to the console for tuning.")]
+        private bool logSummaryToConsole;
+
         [Header("Events")]
         [SerializeField]
         private ProvinceStateEvent onProvinceStateChanged = new ProvinceStateEvent();
@@ -109,6 +114,7 @@ namespace Zarus.Systems
         private bool allProvincesFullyInfectedRaised;
         private bool outcomeTriggered;
         private int lastSimulatedDayIndex = 1;
+        private int lastSummaryDayIndex;
 
         public IReadOnlyDictionary<string, ProvinceInfectionState> Provinces => provinces;
         public GlobalCureState GlobalState => globalState;
@@ -173,6 +179,7 @@ namespace Zarus.Systems
             initialized = false;
             outcomeTriggered = false;
             lastSimulatedDayIndex = 1;
+            lastSummaryDayIndex = 0;
             GameOutcomeState.Reset();
 
             if (mapController == null)
@@ -319,6 +326,7 @@ namespace Zarus.Systems
 
             UpdateGlobalCure(deltaHours);
             EvaluateWinLoss(dayIndex);
+            LogSummaryIfNeeded(dayIndex);
 
             var allFullyInfected = fullyInfectedCount == provinces.Count && provinces.Count > 0;
             if (allFullyInfected && !allProvincesFullyInfectedRaised)
@@ -507,6 +515,60 @@ namespace Zarus.Systems
             {
                 Debug.LogWarning("[OutbreakSimulation] UIManager not found; cannot display End screen.");
             }
+        }
+
+        private void LogSummaryIfNeeded(int dayIndex)
+        {
+            if (!logSummaryToConsole || dayIndex <= 0)
+            {
+                return;
+            }
+
+            if (lastSummaryDayIndex == dayIndex)
+            {
+                return;
+            }
+
+            lastSummaryDayIndex = dayIndex;
+            LogSimulationSummary(dayIndex);
+        }
+
+        private void LogSimulationSummary(int dayIndex)
+        {
+            if (provinces.Count == 0)
+            {
+                return;
+            }
+
+            float infectionSum = 0f;
+            int fullyInfected = 0;
+            foreach (var state in provinces.Values)
+            {
+                infectionSum += Mathf.Clamp01(state.Infection01);
+                if (state.IsFullyInfected)
+                {
+                    fullyInfected++;
+                }
+            }
+
+            var provinceCount = provinces.Count;
+            var avgInfection = provinceCount > 0 ? infectionSum / provinceCount : 0f;
+            var saved = Mathf.Max(0, provinceCount - fullyInfected);
+            var curePercent = Mathf.RoundToInt(Mathf.Clamp01(globalState?.CureProgress01 ?? 0f) * 100f);
+            var infectionPercent = Mathf.RoundToInt(Mathf.Clamp01(avgInfection) * 100f);
+            var active = globalState?.ActiveOutpostCount ?? 0;
+            var total = globalState?.TotalOutpostCount ?? 0;
+            var budget = globalState?.ZarBalance ?? 0;
+
+            Debug.LogFormat("[OutbreakSimulation] Day {0}: Cure {1}% | Avg infection {2}% | Provinces saved {3}/{4} | Outposts {5} active/{6} total | Budget R {7}",
+                dayIndex,
+                curePercent,
+                infectionPercent,
+                saved,
+                provinceCount,
+                active,
+                total,
+                budget);
         }
 
         private void RaiseProvinceStateChanged(ProvinceInfectionState state)
