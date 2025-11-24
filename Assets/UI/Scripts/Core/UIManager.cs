@@ -1,6 +1,10 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
+using UnityEngine.SceneManagement;
 using Zarus.Map;
+#if UNITY_EDITOR
+using UnityEditor;
+#endif
 
 namespace Zarus.UI
 {
@@ -45,12 +49,22 @@ namespace Zarus.UI
         [SerializeField]
         private Vector2 cursorHotspot = new Vector2(8f, 4f);
 
-        [SerializeField, Range(0.05f, 1f)]
-        private float cursorScale = 0.2f;
+        [SerializeField, Range(0.01f, 1f)]
+        private float cursorScale = 0.033333335f;
 
         [Header("Input")]
         [SerializeField]
         private InputActionAsset inputActions;
+
+        [Header("Scene Flow")]
+        [SerializeField]
+        private string startSceneName = "Start";
+
+        [SerializeField]
+        private string gameplaySceneName = "Main";
+
+        [SerializeField]
+        private string endSceneName = "End";
 
         private InputAction pauseAction;
         private InputActionMap playerActionMap;
@@ -103,10 +117,8 @@ namespace Zarus.UI
         private void Start()
         {
             // Show HUD on game start
-            if (gameHUD != null)
-            {
-                gameHUD.Show();
-            }
+            EnsureGameHUDReference();
+            gameHUD?.Show();
 
             SetMapInteractionEnabled(true);
         }
@@ -222,10 +234,41 @@ namespace Zarus.UI
         }
 
         /// <summary>
+        /// Returns to the start menu scene.
+        /// </summary>
+        public void ReturnToMenu()
+        {
+            Debug.Log("[UIManager] Returning to start menu...");
+            Time.timeScale = 1f;
+            LoadScene(startSceneName);
+        }
+
+        /// <summary>
+        /// Restarts the gameplay scene.
+        /// </summary>
+        public void RestartGame()
+        {
+            Debug.Log("[UIManager] Restarting gameplay scene...");
+            Time.timeScale = 1f;
+            LoadScene(gameplaySceneName);
+        }
+
+        /// <summary>
+        /// Loads the end/game over scene.
+        /// </summary>
+        public void ShowEndScreen()
+        {
+            Debug.Log("[UIManager] Loading end scene...");
+            Time.timeScale = 1f;
+            LoadScene(endSceneName);
+        }
+
+        /// <summary>
         /// Shows the game HUD.
         /// </summary>
         public void ShowHUD()
         {
+            EnsureGameHUDReference();
             gameHUD?.Show();
         }
 
@@ -234,6 +277,7 @@ namespace Zarus.UI
         /// </summary>
         public void HideHUD()
         {
+            EnsureGameHUDReference();
             gameHUD?.Hide();
         }
 
@@ -262,7 +306,7 @@ namespace Zarus.UI
             }
 
             var textureToUse = sourceTexture;
-            float scale = Mathf.Clamp(cursorScale, 0.1f, 1f);
+            float scale = Mathf.Clamp(cursorScale, 0.01f, 1f);
             if (!Mathf.Approximately(scale, 1f))
             {
                 textureToUse = ScaleCursorTexture(sourceTexture, scale);
@@ -311,6 +355,17 @@ namespace Zarus.UI
             return scaled;
         }
 
+        private void LoadScene(string sceneName)
+        {
+            if (string.IsNullOrEmpty(sceneName))
+            {
+                Debug.LogWarning("[UIManager] Scene name not configured.");
+                return;
+            }
+
+            SceneManager.LoadScene(sceneName);
+        }
+
         private void SetMapInteractionEnabled(bool enabled)
         {
             var controllers = GetMapControllers();
@@ -341,6 +396,14 @@ namespace Zarus.UI
             }
 
             return cachedMapControllers;
+        }
+
+        private void EnsureGameHUDReference()
+        {
+            if (gameHUD == null)
+            {
+                gameHUD = FindFirstObjectByType<GameHUD>();
+            }
         }
     }
 }

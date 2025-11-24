@@ -3,7 +3,8 @@
     "rootNamespace": "Zarus.UI",
     "references": [
         "Zarus.Map",
-        "Unity.InputSystem"
+        "Unity.InputSystem",
+        "Zarus.Systems"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],
