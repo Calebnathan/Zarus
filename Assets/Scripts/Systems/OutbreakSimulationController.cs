@@ -33,8 +33,8 @@ namespace Zarus.Systems
         [SerializeField]
         private OutpostRateConfig outpostRates = new OutpostRateConfig
         {
-            LocalCurePerHour = 0.02f,
-            GlobalCurePerHourPerOutpost = 0.01f,
+            LocalCurePerHour = 0.025f,
+            GlobalCurePerHourPerOutpost = 0.008f,
             DiminishingReturnFactor = 0.9f,
             TargetWinDayMin = 10f,
             TargetWinDayMax = 15f
@@ -43,17 +43,17 @@ namespace Zarus.Systems
         [SerializeField]
         private VirusRateConfig virusRates = new VirusRateConfig
         {
-            BaseInfectionPerHour = 0.0125f,
-            DailyVirusGrowth = 0.06f,
-            OutpostDisableThreshold01 = 0.8f,
+            BaseInfectionPerHour = 0.011f,
+            DailyVirusGrowth = 0.05f,
+            OutpostDisableThreshold01 = 0.75f,
             FullyInfectedThreshold01 = 0.99f
         };
 
         [SerializeField]
         private OutpostCostConfig costConfig = new OutpostCostConfig
         {
-            BaseCostR = 20,
-            CostPerExistingOutpostR = 8
+            BaseCostR = 25,
+            CostPerExistingOutpostR = 10
         };
 
         [Header("Special Provinces")]
@@ -64,6 +64,10 @@ namespace Zarus.Systems
         [Tooltip("Bonus multiplier applied to global research from urban hub outposts.")]
         private float urbanHubBonusMultiplier = 1.25f;
 
+        [Header("Income Settings")]
+        [SerializeField]
+        private IncomeConfig incomeConfig = IncomeConfig.Default;
+
         [Header("Startup Settings")]
         [SerializeField]
         [Tooltip("Randomized infection percentage seeded per province (0-1 range).")]
@@ -71,7 +75,16 @@ namespace Zarus.Systems
 
         [SerializeField, Min(0)]
         [Tooltip("Starting national ZAR budget for deploying outposts.")]
-        private int startingZarBalance = 200;
+        private int startingZarBalance = 150;
+
+        [Header("Outbreak Hotspots")]
+        [SerializeField]
+        [Tooltip("Number of provinces that start with higher infection.")]
+        private int hotspotCount = 2;
+
+        [SerializeField]
+        [Tooltip("Infection range for hotspot provinces.")]
+        private Vector2 hotspotInfectionRange = new Vector2(0.30f, 0.45f);
 
         [Header("Diagnostics")]
         [SerializeField]
@@ -94,6 +107,9 @@ namespace Zarus.Systems
         [SerializeField]
         private UnityEvent onOutcomeTriggered = new UnityEvent();
 
+        [SerializeField]
+        private IncomeReceivedEvent onDailyIncomeReceived = new IncomeReceivedEvent();
+
         public event Action<ProvinceInfectionState> ProvinceStateChanged;
         public event Action<GlobalCureState> GlobalStateChanged;
         public event Action AllProvincesFullyInfected;
@@ -103,6 +119,9 @@ namespace Zarus.Systems
         public UnityEvent OnAllProvincesFullyInfected => onAllProvincesFullyInfected;
         public UnityEvent OnCureCompleted => onCureCompleted;
         public UnityEvent OnOutcomeTriggered => onOutcomeTriggered;
+        public UnityEvent<int> OnDailyIncomeReceived => onDailyIncomeReceived;
+
+        public event Action<int> DailyIncomeReceived;
 
         private readonly Dictionary<string, ProvinceInfectionState> provinces =
             new Dictionary<string, ProvinceInfectionState>(StringComparer.OrdinalIgnoreCase);
@@ -115,12 +134,16 @@ namespace Zarus.Systems
         private bool outcomeTriggered;
         private int lastSimulatedDayIndex = 1;
         private int lastSummaryDayIndex;
+        private int lastIncomeDay;
+        private PlayerUpgrades playerUpgrades;
 
         public IReadOnlyDictionary<string, ProvinceInfectionState> Provinces => provinces;
         public GlobalCureState GlobalState => globalState;
         public OutpostCostConfig CostConfig => costConfig;
         public OutpostRateConfig OutpostRates => outpostRates;
         public VirusRateConfig VirusRates => virusRates;
+        public PlayerUpgrades Upgrades => playerUpgrades;
+        public IncomeConfig IncomeConfig => incomeConfig;
 
         private void Awake()
         {
@@ -133,6 +156,8 @@ namespace Zarus.Systems
             {
                 dayNightController = FindFirstObjectByType<DayNightCycleController>();
             }
+
+            playerUpgrades = new PlayerUpgrades();
 
             globalState = new GlobalCureState
             {
@@ -175,6 +200,8 @@ namespace Zarus.Systems
             outcomeTriggered = false;
             lastSimulatedDayIndex = 1;
             lastSummaryDayIndex = 0;
+            lastIncomeDay = 0;
+            playerUpgrades?.Reset();
             GameOutcomeState.Reset();
 
             if (mapController == null)
@@ -215,6 +242,9 @@ namespace Zarus.Systems
                 provinces[entry.RegionId] = state;
                 RaiseProvinceStateChanged(state);
             }
+
+            // Apply hotspot infection to random provinces
+            ApplyHotspotInfection();
 
             globalState.CureProgress01 = 0f;
             globalState.ActiveOutpostCount = 0;
@@ -286,7 +316,7 @@ namespace Zarus.Systems
                 var localCure = 0f;
                 if (state.OutpostCount > 0 && !state.OutpostDisabled)
                 {
-                    localCure = Mathf.Max(0f, outpostRates.LocalCurePerHour) * state.OutpostCount * deltaHours;
+                    localCure = Mathf.Max(0f, GetEffectiveLocalCureRate()) * state.OutpostCount * deltaHours;
                 }
 
                 state.Infection01 = Mathf.Clamp01(state.Infection01 + infectionIncrease - localCure);
@@ -320,6 +350,7 @@ namespace Zarus.Systems
             }
 
             UpdateGlobalCure(deltaHours);
+            ProcessDailyIncome(dayIndex);
             EvaluateWinLoss(dayIndex);
             LogSummaryIfNeeded(dayIndex);
 
@@ -369,15 +400,17 @@ namespace Zarus.Systems
             globalState.TotalOutpostCount = totalOutposts;
             globalState.ActiveOutpostCount = activeOutposts;
 
-            if (deltaHours > 0f && effectiveOutpostFactor > 0f && outpostRates.GlobalCurePerHourPerOutpost > 0f)
+            var effectiveGlobalRate = GetEffectiveGlobalCureRate();
+            if (deltaHours > 0f && effectiveOutpostFactor > 0f && effectiveGlobalRate > 0f)
             {
                 globalState.CureProgress01 = Mathf.Clamp01(
-                    globalState.CureProgress01 + outpostRates.GlobalCurePerHourPerOutpost * effectiveOutpostFactor * deltaHours);
+                    globalState.CureProgress01 + effectiveGlobalRate * effectiveOutpostFactor * deltaHours);
             }
 
             RaiseGlobalStateChanged();
 
-            if (!cureCompleteRaised && globalState.CureProgress01 >= 0.999f)
+            var cureThreshold = GetEffectiveCureThreshold();
+            if (!cureCompleteRaised && globalState.CureProgress01 >= cureThreshold)
             {
                 cureCompleteRaised = true;
                 onCureCompleted?.Invoke();
@@ -398,7 +431,7 @@ namespace Zarus.Systems
 
         public bool CanBuildOutpost(string regionId, out int costR, out OutpostBuildError error)
         {
-            costR = OutbreakMath.ComputeOutpostCostR(globalState.TotalOutpostCount, costConfig);
+            costR = GetEffectiveOutpostCost();
             error = OutpostBuildError.None;
 
             if (string.IsNullOrEmpty(regionId) || !provinces.TryGetValue(regionId, out var state))
@@ -476,8 +509,9 @@ namespace Zarus.Systems
             }
 
             var savedProvinces = Mathf.Max(0, provinces.Count - fullyInfected);
+            var cureThreshold = GetEffectiveCureThreshold();
 
-            if (globalState.CureProgress01 >= 0.999f)
+            if (globalState.CureProgress01 >= cureThreshold)
             {
                 TriggerOutcome(GameOutcomeKind.Victory, dayIndex, savedProvinces, fullyInfected);
             }
@@ -580,10 +614,182 @@ namespace Zarus.Systems
             GlobalStateChanged?.Invoke(globalState);
         }
 
+        /// <summary>
+        /// Calculates the daily income based on province health and upgrades.
+        /// </summary>
+        public int CalculateDailyIncome()
+        {
+            var healthyProvinceCount = 0;
+            var fullyInfectedCount = 0;
+
+            foreach (var state in provinces.Values)
+            {
+                if (state.IsFullyInfected)
+                {
+                    fullyInfectedCount++;
+                }
+                else if (state.Infection01 < virusRates.OutpostDisableThreshold01)
+                {
+                    healthyProvinceCount++;
+                }
+            }
+
+            // Base income
+            var baseIncome = incomeConfig.BaseDailyIncomeR;
+
+            // Tax Efficiency upgrade: +15% base income per level
+            var taxEfficiencyLevel = playerUpgrades?.GetLevel(UpgradeType.TaxEfficiency) ?? 0;
+            var taxMultiplier = 1f + taxEfficiencyLevel * 0.15f;
+
+            // Province health bonus
+            var provinceBonus = healthyProvinceCount * incomeConfig.PerHealthyProvinceBonusR;
+
+            // Economic Recovery upgrade: +R10 per healthy province per level
+            var economicRecoveryLevel = playerUpgrades?.GetLevel(UpgradeType.EconomicRecovery) ?? 0;
+            var economyBonus = economicRecoveryLevel * 10 * healthyProvinceCount;
+
+            // Penalty for fully infected provinces
+            var penalty = fullyInfectedCount * incomeConfig.PerFullyInfectedPenaltyR;
+
+            var totalIncome = (int)((baseIncome + provinceBonus + economyBonus) * taxMultiplier) + penalty;
+            return Mathf.Max(0, totalIncome);
+        }
+
+        private void ProcessDailyIncome(int dayIndex)
+        {
+            if (dayIndex <= lastIncomeDay || outcomeTriggered)
+            {
+                return;
+            }
+
+            var income = CalculateDailyIncome();
+            if (income > 0)
+            {
+                globalState.ZarBalance += income;
+                lastIncomeDay = dayIndex;
+                onDailyIncomeReceived?.Invoke(income);
+                DailyIncomeReceived?.Invoke(income);
+                RaiseGlobalStateChanged();
+
+                if (logSummaryToConsole)
+                {
+                    Debug.LogFormat("[OutbreakSimulation] Day {0} income: +R {1} (Budget now: R {2})",
+                        dayIndex, income, globalState.ZarBalance);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Attempts to purchase an upgrade. Returns true if successful.
+        /// </summary>
+        public bool TryPurchaseUpgrade(UpgradeType type, out int cost, out int bonusAmount)
+        {
+            cost = 0;
+            bonusAmount = 0;
+
+            if (playerUpgrades == null || globalState == null)
+            {
+                return false;
+            }
+
+            var balance = globalState.ZarBalance;
+            if (!playerUpgrades.TryPurchase(type, ref balance, out cost, out bonusAmount))
+            {
+                return false;
+            }
+
+            globalState.ZarBalance = balance;
+            RaiseGlobalStateChanged();
+            return true;
+        }
+
+        /// <summary>
+        /// Gets the effective outpost cost after applying RapidDeployment upgrade discount.
+        /// </summary>
+        public int GetEffectiveOutpostCost()
+        {
+            var baseCost = OutbreakMath.ComputeOutpostCostR(globalState.TotalOutpostCount, costConfig);
+            var rapidDeploymentLevel = playerUpgrades?.GetLevel(UpgradeType.RapidDeployment) ?? 0;
+            var discount = rapidDeploymentLevel * 0.25f;
+            return Mathf.Max(1, (int)(baseCost * (1f - discount)));
+        }
+
+        /// <summary>
+        /// Gets the effective local cure rate after applying OutpostCapacity upgrade.
+        /// </summary>
+        public float GetEffectiveLocalCureRate()
+        {
+            var outpostCapacityLevel = playerUpgrades?.GetLevel(UpgradeType.OutpostCapacity) ?? 0;
+            return outpostRates.LocalCurePerHour * (1f + outpostCapacityLevel * 0.50f);
+        }
+
+        /// <summary>
+        /// Gets the effective global cure rate after applying ResearchEfficiency upgrade.
+        /// </summary>
+        public float GetEffectiveGlobalCureRate()
+        {
+            var researchEfficiencyLevel = playerUpgrades?.GetLevel(UpgradeType.ResearchEfficiency) ?? 0;
+            return outpostRates.GlobalCurePerHourPerOutpost * (1f + researchEfficiencyLevel * 0.20f);
+        }
+
+        /// <summary>
+        /// Gets the effective cure threshold after applying VaccineBreakthrough upgrade.
+        /// </summary>
+        public float GetEffectiveCureThreshold()
+        {
+            var vaccineBreakthroughLevel = playerUpgrades?.GetLevel(UpgradeType.VaccineBreakthrough) ?? 0;
+            return 0.999f - vaccineBreakthroughLevel * 0.05f;
+        }
+
+        /// <summary>
+        /// Applies higher infection levels to random provinces as outbreak hotspots.
+        /// </summary>
+        private void ApplyHotspotInfection()
+        {
+            if (hotspotCount <= 0 || provinces.Count == 0)
+            {
+                return;
+            }
+
+            var provinceList = new List<ProvinceInfectionState>(provinces.Values);
+            var actualHotspotCount = Mathf.Min(hotspotCount, provinceList.Count);
+            
+            // Fisher-Yates shuffle to select random provinces
+            for (int i = 0; i < actualHotspotCount; i++)
+            {
+                var randomIndex = UnityEngine.Random.Range(i, provinceList.Count);
+                (provinceList[i], provinceList[randomIndex]) = (provinceList[randomIndex], provinceList[i]);
+            }
+
+            var minHotspot = Mathf.Clamp01(Mathf.Min(hotspotInfectionRange.x, hotspotInfectionRange.y));
+            var maxHotspot = Mathf.Clamp01(Mathf.Max(hotspotInfectionRange.x, hotspotInfectionRange.y));
+
+            for (int i = 0; i < actualHotspotCount; i++)
+            {
+                var state = provinceList[i];
+                var hotspotInfection = Mathf.Approximately(minHotspot, maxHotspot)
+                    ? minHotspot
+                    : UnityEngine.Random.Range(minHotspot, maxHotspot);
+                
+                state.Infection01 = Mathf.Max(state.Infection01, hotspotInfection);
+                state.IsFullyInfected = state.Infection01 >= virusRates.FullyInfectedThreshold01;
+                RaiseProvinceStateChanged(state);
+
+                if (logSummaryToConsole)
+                {
+                    Debug.LogFormat("[OutbreakSimulation] Hotspot province: {0} at {1:P0} infection",
+                        state.RegionId, state.Infection01);
+                }
+            }
+        }
+
         [Serializable]
         private class ProvinceStateEvent : UnityEvent<ProvinceInfectionState> { }
 
         [Serializable]
         private class GlobalStateEvent : UnityEvent<GlobalCureState> { }
+
+        [Serializable]
+        private class IncomeReceivedEvent : UnityEvent<int> { }
     }
 }

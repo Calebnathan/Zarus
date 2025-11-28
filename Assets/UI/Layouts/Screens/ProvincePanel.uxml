@@ -1,0 +1,42 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" 
+       xsi="http://www.w3.org/2001/XMLSchema-instance" 
+       engine="UnityEngine.UIElements" 
+       editor="UnityEditor.UIElements" 
+       noNamespaceSchemaLocation="../../../UIElementsSchema/UIElements.xsd" 
+       editor-extension-mode="False">
+    
+    <ui:Style src="../../Styles/MainTheme.uss" />
+    
+    <!-- World-Space Province Panel -->
+    <ui:VisualElement name="ProvincePanelRoot" class="province-panel">
+        
+        <!-- Province Header -->
+        <ui:VisualElement name="ProvinceHeader" class="province-panel__header">
+            <ui:Label name="ProvinceNameLabel" text="★ PROVINCE NAME ★" class="province-panel__title" />
+        </ui:VisualElement>
+        
+        <!-- Province Stats -->
+        <ui:VisualElement name="ProvinceStats" class="province-panel__stats">
+            <ui:VisualElement class="province-stat">
+                <ui:Label text="INFECTION" class="province-stat__label" />
+                <ui:Label name="InfectionValueLabel" text="24%" class="province-stat__value province-stat__value--warning" />
+            </ui:VisualElement>
+            
+            <ui:VisualElement class="province-stat">
+                <ui:Label text="OUTPOSTS" class="province-stat__label" />
+                <ui:Label name="OutpostStatusLabel" text="None deployed" class="province-stat__value province-stat__value--muted" />
+            </ui:VisualElement>
+        </ui:VisualElement>
+        
+        <!-- Province Actions -->
+        <ui:VisualElement name="ProvinceActions" class="province-panel__actions">
+            <ui:Button name="DeployOutpostButton" text="Deploy Cure Outpost" class="province-action-button province-action-button--primary" />
+            <ui:Label name="OutpostCostLabel" text="Cost: R 26" class="province-panel__cost" />
+        </ui:VisualElement>
+        
+        <!-- Connector Arrow (visual indicator pointing to province) -->
+        <ui:VisualElement name="PanelConnector" class="province-panel__connector" />
+        
+    </ui:VisualElement>
+    
+</ui:UXML>
