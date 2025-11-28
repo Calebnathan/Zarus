@@ -3,6 +3,21 @@ using System;
 namespace Zarus.Systems
 {
     [Serializable]
+    public struct IncomeConfig
+    {
+        public int BaseDailyIncomeR;
+        public int PerHealthyProvinceBonusR;
+        public int PerFullyInfectedPenaltyR;
+
+        public static IncomeConfig Default => new IncomeConfig
+        {
+            BaseDailyIncomeR = 40,
+            PerHealthyProvinceBonusR = 5,
+            PerFullyInfectedPenaltyR = -15
+        };
+    }
+
+    [Serializable]
     public class ProvinceInfectionState
     {
         public string RegionId;

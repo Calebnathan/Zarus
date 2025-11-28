@@ -1,0 +1,140 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" 
+       xsi="http://www.w3.org/2001/XMLSchema-instance" 
+       engine="UnityEngine.UIElements" 
+       editor="UnityEditor.UIElements" 
+       noNamespaceSchemaLocation="../../../UIElementsSchema/UIElements.xsd" 
+       editor-extension-mode="False">
+    
+    <ui:Style src="../../Styles/MainTheme.uss" />
+    
+    <!-- Upgrade Panel Overlay -->
+    <ui:VisualElement name="UpgradePanelRoot" class="upgrade-panel-overlay">
+        
+        <!-- Panel Container -->
+        <ui:VisualElement name="UpgradePanelContainer" class="upgrade-panel">
+            
+            <!-- Header -->
+            <ui:VisualElement name="UpgradePanelHeader" class="upgrade-panel__header">
+                <ui:Label text="UPGRADES" name="UpgradePanelTitle" class="upgrade-panel__title" />
+                <ui:Button name="CloseUpgradePanelButton" text="✕" class="upgrade-panel__close-button" />
+            </ui:VisualElement>
+            
+            <!-- Budget Display -->
+            <ui:VisualElement name="BudgetDisplay" class="upgrade-panel__budget">
+                <ui:Label text="Available Budget:" class="upgrade-panel__budget-label" />
+                <ui:Label text="R 0" name="UpgradeBudgetValue" class="upgrade-panel__budget-value" />
+            </ui:VisualElement>
+            
+            <!-- Upgrade Columns -->
+            <ui:VisualElement name="UpgradeColumns" class="upgrade-panel__columns">
+                
+                <!-- Infrastructure Column -->
+                <ui:VisualElement name="InfrastructureColumn" class="upgrade-column">
+                    <ui:Label text="INFRASTRUCTURE" class="upgrade-column__title upgrade-column__title--infrastructure" />
+                    
+                    <!-- Tax Efficiency -->
+                    <ui:VisualElement name="TaxEfficiencyCard" class="upgrade-card" data-upgrade-type="TaxEfficiency">
+                        <ui:VisualElement class="upgrade-card__header">
+                            <ui:Label text="Tax Efficiency" name="TaxEfficiencyName" class="upgrade-card__name" />
+                            <ui:Label text="0 / 5" name="TaxEfficiencyLevel" class="upgrade-card__level" />
+                        </ui:VisualElement>
+                        <ui:Label text="+15% base income per level" name="TaxEfficiencyDesc" class="upgrade-card__description" />
+                        <ui:VisualElement class="upgrade-card__footer">
+                            <ui:Label text="Cost: R 100" name="TaxEfficiencyCost" class="upgrade-card__cost" />
+                            <ui:Button text="Upgrade" name="TaxEfficiencyButton" class="upgrade-card__button" />
+                        </ui:VisualElement>
+                    </ui:VisualElement>
+                    
+                    <!-- Economic Recovery -->
+                    <ui:VisualElement name="EconomicRecoveryCard" class="upgrade-card" data-upgrade-type="EconomicRecovery">
+                        <ui:VisualElement class="upgrade-card__header">
+                            <ui:Label text="Economic Recovery" name="EconomicRecoveryName" class="upgrade-card__name" />
+                            <ui:Label text="0 / 3" name="EconomicRecoveryLevel" class="upgrade-card__level" />
+                        </ui:VisualElement>
+                        <ui:Label text="+R10 per healthy province per level" name="EconomicRecoveryDesc" class="upgrade-card__description" />
+                        <ui:VisualElement class="upgrade-card__footer">
+                            <ui:Label text="Cost: R 150" name="EconomicRecoveryCost" class="upgrade-card__cost" />
+                            <ui:Button text="Upgrade" name="EconomicRecoveryButton" class="upgrade-card__button" />
+                        </ui:VisualElement>
+                    </ui:VisualElement>
+                    
+                    <!-- Emergency Funds -->
+                    <ui:VisualElement name="EmergencyFundsCard" class="upgrade-card" data-upgrade-type="EmergencyFunds">
+                        <ui:VisualElement class="upgrade-card__header">
+                            <ui:Label text="Emergency Funds" name="EmergencyFundsName" class="upgrade-card__name" />
+                            <ui:Label text="0 / 3" name="EmergencyFundsLevel" class="upgrade-card__level" />
+                        </ui:VisualElement>
+                        <ui:Label text="One-time budget injection (R200/R300/R500)" name="EmergencyFundsDesc" class="upgrade-card__description" />
+                        <ui:VisualElement class="upgrade-card__footer">
+                            <ui:Label text="Cost: R 80" name="EmergencyFundsCost" class="upgrade-card__cost" />
+                            <ui:Button text="Unlock" name="EmergencyFundsButton" class="upgrade-card__button" />
+                        </ui:VisualElement>
+                    </ui:VisualElement>
+                    
+                </ui:VisualElement>
+                
+                <!-- Cure Column -->
+                <ui:VisualElement name="CureColumn" class="upgrade-column">
+                    <ui:Label text="CURE RESEARCH" class="upgrade-column__title upgrade-column__title--cure" />
+                    
+                    <!-- Research Efficiency -->
+                    <ui:VisualElement name="ResearchEfficiencyCard" class="upgrade-card" data-upgrade-type="ResearchEfficiency">
+                        <ui:VisualElement class="upgrade-card__header">
+                            <ui:Label text="Research Efficiency" name="ResearchEfficiencyName" class="upgrade-card__name" />
+                            <ui:Label text="0 / 5" name="ResearchEfficiencyLevel" class="upgrade-card__level" />
+                        </ui:VisualElement>
+                        <ui:Label text="+20% global cure speed per level" name="ResearchEfficiencyDesc" class="upgrade-card__description" />
+                        <ui:VisualElement class="upgrade-card__footer">
+                            <ui:Label text="Cost: R 120" name="ResearchEfficiencyCost" class="upgrade-card__cost" />
+                            <ui:Button text="Upgrade" name="ResearchEfficiencyButton" class="upgrade-card__button" />
+                        </ui:VisualElement>
+                    </ui:VisualElement>
+                    
+                    <!-- Outpost Capacity -->
+                    <ui:VisualElement name="OutpostCapacityCard" class="upgrade-card" data-upgrade-type="OutpostCapacity">
+                        <ui:VisualElement class="upgrade-card__header">
+                            <ui:Label text="Outpost Capacity" name="OutpostCapacityName" class="upgrade-card__name" />
+                            <ui:Label text="0 / 3" name="OutpostCapacityLevel" class="upgrade-card__level" />
+                        </ui:VisualElement>
+                        <ui:Label text="+50% local cure rate per level" name="OutpostCapacityDesc" class="upgrade-card__description" />
+                        <ui:VisualElement class="upgrade-card__footer">
+                            <ui:Label text="Cost: R 200" name="OutpostCapacityCost" class="upgrade-card__cost" />
+                            <ui:Button text="Upgrade" name="OutpostCapacityButton" class="upgrade-card__button" />
+                        </ui:VisualElement>
+                    </ui:VisualElement>
+                    
+                    <!-- Rapid Deployment -->
+                    <ui:VisualElement name="RapidDeploymentCard" class="upgrade-card" data-upgrade-type="RapidDeployment">
+                        <ui:VisualElement class="upgrade-card__header">
+                            <ui:Label text="Rapid Deployment" name="RapidDeploymentName" class="upgrade-card__name" />
+                            <ui:Label text="0 / 3" name="RapidDeploymentLevel" class="upgrade-card__level" />
+                        </ui:VisualElement>
+                        <ui:Label text="-25% outpost cost per level" name="RapidDeploymentDesc" class="upgrade-card__description" />
+                        <ui:VisualElement class="upgrade-card__footer">
+                            <ui:Label text="Cost: R 150" name="RapidDeploymentCost" class="upgrade-card__cost" />
+                            <ui:Button text="Upgrade" name="RapidDeploymentButton" class="upgrade-card__button" />
+                        </ui:VisualElement>
+                    </ui:VisualElement>
+                    
+                    <!-- Vaccine Breakthrough -->
+                    <ui:VisualElement name="VaccineBreakthroughCard" class="upgrade-card" data-upgrade-type="VaccineBreakthrough">
+                        <ui:VisualElement class="upgrade-card__header">
+                            <ui:Label text="Vaccine Breakthrough" name="VaccineBreakthroughName" class="upgrade-card__name" />
+                            <ui:Label text="0 / 2" name="VaccineBreakthroughLevel" class="upgrade-card__level" />
+                        </ui:VisualElement>
+                        <ui:Label text="-5% cure threshold per level (easier win)" name="VaccineBreakthroughDesc" class="upgrade-card__description" />
+                        <ui:VisualElement class="upgrade-card__footer">
+                            <ui:Label text="Cost: R 300" name="VaccineBreakthroughCost" class="upgrade-card__cost" />
+                            <ui:Button text="Upgrade" name="VaccineBreakthroughButton" class="upgrade-card__button" />
+                        </ui:VisualElement>
+                    </ui:VisualElement>
+                    
+                </ui:VisualElement>
+                
+            </ui:VisualElement>
+            
+        </ui:VisualElement>
+        
+    </ui:VisualElement>
+    
+</ui:UXML>

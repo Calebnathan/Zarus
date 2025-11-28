@@ -41,34 +41,22 @@
                     <ui:VisualElement name="OutpostSummaryStat" class="hud-card__section hud-card__section--flush hud-stat--vertical hud-outpost-summary">
                         <ui:Label text="Outposts: 0 active / 0 total" name="OutpostCountLabel" class="hud-stat__value" />
                         <ui:Label text="Budget: R 0" name="ZarBalanceLabel" class="hud-timer-detail" />
+                        <ui:Button name="OpenUpgradesButton" text="Upgrades" class="hud-button hud-button--secondary hud-stack-item--sm" style="margin-top: 8px;" />
                     </ui:VisualElement>
 
-                </ui:VisualElement>
-
-                <!-- Province Details / Actions Card -->
-                <ui:VisualElement name="ProvinceCard" class="hud-card hud-card--stack hud-card--flush">
-
-                    <!-- Current Province Info -->
-                    <ui:VisualElement name="ProvinceInfo" class="hud-card__section hud-province-info" style="min-width: 320px;">
-                        <ui:Label text="No province selected" name="ProvinceNameLabel" class="hud-stat__label" style="margin-bottom: 4px; color: #e9f1ff;"/>
-                        <ui:Label text="Click a province to view details" name="ProvinceDescLabel" class="hud-stat__value" style="font-size: 14px; -unity-font-style: normal; color: #e9f1ff;"/>
-                    </ui:VisualElement>
-
-                    <ui:VisualElement class="hud-divider" />
-
-                    <!-- Province Outpost Actions -->
-                    <ui:VisualElement name="OutpostActions" class="hud-card__section hud-card__section--flush hud-province-actions">
-                        <ui:Label text="Select a province" name="OutpostStatusLabel" class="hud-stat__label hud-outpost-status--none hud-stack-item--sm" />
-                        <ui:Label text="Infection: --%" name="ProvinceInfectionLabel" class="hud-timer-detail hud-stack-item--sm" />
-                        <ui:Button name="BuildOutpostButton" text="Deploy Cure Outpost" class="hud-button hud-stack-item--sm" />
-                        <ui:Label text="Cost: R --" name="BuildOutpostCostLabel" class="hud-timer-detail hud-stack-item--sm hud-stack-item--flush" />
-                    </ui:VisualElement>
-                    
                 </ui:VisualElement>
                 
             </ui:VisualElement>
             
         </ui:VisualElement>
+        
+        <!-- Income Toast Notification -->
+        <ui:VisualElement name="IncomeToast" class="hud-toast hud-toast--income">
+            <ui:Label name="IncomeToastText" text="+R 50 Daily Income" class="hud-toast__text" />
+        </ui:VisualElement>
+        
+        <!-- Modal Host for Overlays (Upgrade Panel, etc.) -->
+        <ui:VisualElement name="ModalHost" class="hud-modal-host hidden" />
         
     </ui:VisualElement>
     

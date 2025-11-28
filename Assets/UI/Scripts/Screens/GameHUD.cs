@@ -25,6 +25,10 @@ namespace Zarus.UI
         [SerializeField]
         private OutbreakSimulationController outbreakSimulation;
 
+        [Header("Upgrade Panel")]
+        [SerializeField]
+        private VisualTreeAsset upgradePanelTemplate;
+
         // UI Elements
         private ProgressBar cureProgressBar;
         private Label cureProgressDetailsLabel;
@@ -42,6 +46,12 @@ namespace Zarus.UI
         private Button buildOutpostButton;
         private Label buildOutpostCostLabel;
         private VisualElement hudInteractionBlockRegion;
+        private Button openUpgradesButton;
+        private VisualElement incomeToast;
+        private Label incomeToastText;
+        private VisualElement modalHost;
+        private UpgradePanelController upgradePanelController;
+        private IVisualElementScheduledItem scheduledToastHide;
 
         // Game State
         private HashSet<string> visitedProvinces = new HashSet<string>();
@@ -183,6 +193,17 @@ namespace Zarus.UI
             if (buildOutpostButton != null)
             {
                 buildOutpostButton.clicked += OnBuildOutpostClicked;
+            }
+
+            // Upgrade panel and income toast
+            openUpgradesButton = root.Q<Button>("OpenUpgradesButton");
+            incomeToast = root.Q<VisualElement>("IncomeToast");
+            incomeToastText = root.Q<Label>("IncomeToastText");
+            modalHost = root.Q<VisualElement>("ModalHost");
+
+            if (openUpgradesButton != null)
+            {
+                openUpgradesButton.clicked += OnOpenUpgradesClicked;
             }
 
             HookOutbreakSimulationEvents();
@@ -351,6 +372,7 @@ namespace Zarus.UI
 
             outbreakSimulation.GlobalStateChanged += HandleGlobalStateChanged;
             outbreakSimulation.ProvinceStateChanged += HandleProvinceStateChanged;
+            outbreakSimulation.DailyIncomeReceived += HandleDailyIncomeReceived;
             simulationEventsHooked = true;
 
             if (outbreakSimulation.GlobalState != null)
@@ -729,6 +751,65 @@ namespace Zarus.UI
             return visitedProvinces.Count;
         }
 
+        private void OnOpenUpgradesClicked()
+        {
+            if (upgradePanelController != null)
+            {
+                upgradePanelController.Toggle();
+                return;
+            }
+
+            if (modalHost == null || upgradePanelTemplate == null || outbreakSimulation == null)
+            {
+                Debug.LogWarning("[GameHUD] Cannot open upgrades panel: missing references.");
+                return;
+            }
+
+            // Create upgrade panel from template
+            modalHost.RemoveFromClassList("hidden");
+            modalHost.Clear();
+
+            var panelRoot = upgradePanelTemplate.CloneTree();
+            modalHost.Add(panelRoot);
+
+            upgradePanelController = new UpgradePanelController(panelRoot, outbreakSimulation);
+            upgradePanelController.OnClosed += HandleUpgradePanelClosed;
+            upgradePanelController.Show();
+        }
+
+        private void HandleUpgradePanelClosed()
+        {
+            if (modalHost != null)
+            {
+                modalHost.AddToClassList("hidden");
+            }
+        }
+
+        private void HandleDailyIncomeReceived(int incomeAmount)
+        {
+            ShowIncomeToast(incomeAmount);
+        }
+
+        private void ShowIncomeToast(int amount)
+        {
+            if (incomeToast == null || incomeToastText == null)
+            {
+                return;
+            }
+
+            // Cancel any previously scheduled hide to prevent race conditions
+            scheduledToastHide?.Pause();
+
+            incomeToastText.text = string.Format(CultureInfo.InvariantCulture, "+R {0} Daily Income", amount);
+            incomeToast.AddToClassList("hud-toast--visible");
+
+            // Schedule hide after delay
+            scheduledToastHide = incomeToast.schedule.Execute(() =>
+            {
+                incomeToast.RemoveFromClassList("hud-toast--visible");
+            }).StartingIn(3000);
+        }
+
         private void OnDestroy()
         {
             // Unsubscribe from events
@@ -747,7 +828,20 @@ namespace Zarus.UI
             {
                 outbreakSimulation.GlobalStateChanged -= HandleGlobalStateChanged;
                 outbreakSimulation.ProvinceStateChanged -= HandleProvinceStateChanged;
+                outbreakSimulation.DailyIncomeReceived -= HandleDailyIncomeReceived;
                 simulationEventsHooked = false;
+            }
+
+            if (openUpgradesButton != null)
+            {
+                openUpgradesButton.clicked -= OnOpenUpgradesClicked;
+            }
+
+            if (upgradePanelController != null)
+            {
+                upgradePanelController.OnClosed -= HandleUpgradePanelClosed;
+                upgradePanelController.Dispose();
+                upgradePanelController = null;
             }
 
             if (buildOutpostButton != null)
