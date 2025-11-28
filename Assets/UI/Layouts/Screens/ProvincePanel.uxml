@@ -26,6 +26,16 @@
                 <ui:Label text="OUTPOSTS" class="province-stat__label" />
                 <ui:Label name="OutpostStatusLabel" text="None deployed" class="province-stat__value province-stat__value--muted" />
             </ui:VisualElement>
+            
+            <ui:VisualElement class="province-stat">
+                <ui:Label text="POPULATION" class="province-stat__label" />
+                <ui:Label name="PopulationLabel" text="2.5M" class="province-stat__value" />
+            </ui:VisualElement>
+            
+            <ui:VisualElement class="province-stat">
+                <ui:Label text="THREAT LEVEL" class="province-stat__label" />
+                <ui:Label name="ThreatLevelLabel" text="MODERATE" class="province-stat__value province-stat__value--warning" />
+            </ui:VisualElement>
         </ui:VisualElement>
         
         <!-- Province Actions -->

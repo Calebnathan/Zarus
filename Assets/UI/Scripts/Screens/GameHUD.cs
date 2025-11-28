@@ -9,7 +9,8 @@ using Zarus.Systems;
 namespace Zarus.UI
 {
     /// <summary>
-    /// Controls the in-game HUD display with timer, stats, and province info.
+    /// Controls the modern bottom bar HUD with essential global information.
+    /// Province-specific details are now handled by the diegetic ProvincePanelController.
     /// </summary>
     public class GameHUD : UIScreen
     {
@@ -29,23 +30,13 @@ namespace Zarus.UI
         [SerializeField]
         private VisualTreeAsset upgradePanelTemplate;
 
-        // UI Elements
+        // UI Elements (Bottom Bar Design)
         private ProgressBar cureProgressBar;
         private Label cureProgressDetailsLabel;
-        private Label outpostCountLabel;
         private Label zarBalanceLabel;
         private Label timerValue;
         private Label timerSubValueLabel;
         private Label timerDetailLabel;
-        private Label provinceNameLabel;
-        private Label provinceDescLabel;
-        private VisualElement provinceInfoContainer;
-        private VisualElement outpostActions;
-        private Label outpostStatusLabel;
-        private Label provinceInfectionLabel;
-        private Button buildOutpostButton;
-        private Label buildOutpostCostLabel;
-        private VisualElement hudInteractionBlockRegion;
         private Button openUpgradesButton;
         private VisualElement incomeToast;
         private Label incomeToastText;
@@ -54,28 +45,15 @@ namespace Zarus.UI
         private IVisualElementScheduledItem scheduledToastHide;
 
         // Game State
-        private HashSet<string> visitedProvinces = new HashSet<string>();
-        private RegionEntry selectedRegion;
         private InGameTimeSnapshot latestTimeSnapshot;
         private bool hasTimeSnapshot;
         private GlobalCureState latestGlobalState;
         private bool simulationEventsHooked;
-        private bool pointerOverHudInteractionZone;
-        private bool mapInteractionSuppressedByHud;
 
         private const float TimeScaleDisplayBaseline = 30f;
-        private static readonly string[] OutpostStatusClasses =
-        {
-            "hud-outpost-status--none",
-            "hud-outpost-status--active",
-            "hud-outpost-status--disabled"
-        };
-
-        private string SelectedRegionId => selectedRegion != null ? selectedRegion.RegionId : null;
 
         protected override void Initialize()
         {
-            // Ensure we have a valid document
             if (uiDocument == null)
             {
                 Debug.LogError("[GameHUD] UIDocument is null! Assign it in the Inspector.");
@@ -89,81 +67,29 @@ namespace Zarus.UI
                 return;
             }
 
-            Debug.Log($"[GameHUD] Initializing... Root element: {root.name}, childCount: {root.childCount}");
+            Debug.Log($"[GameHUD] Initializing modern bottom bar HUD...");
 
-            // Query UI elements directly from root
+            // Query UI elements for bottom bar design
             timerValue = root.Q<Label>("TimerValue");
             timerSubValueLabel = root.Q<Label>("TimerSubValue");
             timerDetailLabel = root.Q<Label>("TimerDetail");
-            provinceInfoContainer = root.Q<VisualElement>("ProvinceInfo");
-            provinceNameLabel = root.Q<Label>("ProvinceNameLabel");
-            provinceDescLabel = root.Q<Label>("ProvinceDescLabel");
             cureProgressBar = root.Q<ProgressBar>("CureProgressBar");
             cureProgressDetailsLabel = root.Q<Label>("CureProgressDetailsLabel");
-            outpostCountLabel = root.Q<Label>("OutpostCountLabel");
             zarBalanceLabel = root.Q<Label>("ZarBalanceLabel");
-            outpostActions = root.Q<VisualElement>("OutpostActions");
-            outpostStatusLabel = root.Q<Label>("OutpostStatusLabel");
-            provinceInfectionLabel = root.Q<Label>("ProvinceInfectionLabel");
-            buildOutpostButton = root.Q<Button>("BuildOutpostButton");
-            buildOutpostCostLabel = root.Q<Label>("BuildOutpostCostLabel");
-            hudInteractionBlockRegion = root.Q<VisualElement>("LeftStats");
-            RegisterHudPointerGuards(root);
+            openUpgradesButton = root.Q<Button>("OpenUpgradesButton");
+            incomeToast = root.Q<VisualElement>("IncomeToast");
+            incomeToastText = root.Q<Label>("IncomeToastText");
+            modalHost = root.Q<VisualElement>("ModalHost");
 
-            // Verify all elements were found
-            Debug.Log($"[GameHUD] Elements found - TimerValue: {timerValue != null}, TimerSubValue: {timerSubValueLabel != null}, TimerDetail: {timerDetailLabel != null}, ProvinceNameLabel: {provinceNameLabel != null}, ProvinceDescLabel: {provinceDescLabel != null}");
+            // Verify essential elements
+            if (timerValue == null) Debug.LogWarning("[GameHUD] TimerValue not found - time display may not work");
+            if (cureProgressBar == null) Debug.LogWarning("[GameHUD] CureProgressBar not found - cure progress may not display");
+            if (zarBalanceLabel == null) Debug.LogWarning("[GameHUD] ZarBalanceLabel not found - budget may not display");
 
-            if (timerValue == null) Debug.LogError("[GameHUD] TimerValue not found in UXML!");
-            if (provinceNameLabel == null) Debug.LogError("[GameHUD] ProvinceNameLabel not found in UXML!");
-            if (provinceDescLabel == null) Debug.LogError("[GameHUD] ProvinceDescLabel not found in UXML!");
-
-            // Force visibility on all elements
-            if (timerValue != null)
-            {
-                timerValue.style.display = DisplayStyle.Flex;
-                timerValue.style.visibility = Visibility.Visible;
-                timerValue.style.opacity = 1f;
-            }
-            if (timerSubValueLabel != null)
-            {
-                timerSubValueLabel.style.display = DisplayStyle.Flex;
-                timerSubValueLabel.style.visibility = Visibility.Visible;
-                timerSubValueLabel.style.opacity = 1f;
-            }
-            if (timerDetailLabel != null)
-            {
-                timerDetailLabel.style.display = DisplayStyle.Flex;
-                timerDetailLabel.style.visibility = Visibility.Visible;
-                timerDetailLabel.style.opacity = 1f;
-            }
-            if (provinceNameLabel != null)
-            {
-                provinceNameLabel.style.display = DisplayStyle.Flex;
-                provinceNameLabel.style.visibility = Visibility.Visible;
-                provinceNameLabel.style.opacity = 1f;
-            }
-            if (provinceDescLabel != null)
-            {
-                provinceDescLabel.style.display = DisplayStyle.Flex;
-                provinceDescLabel.style.visibility = Visibility.Visible;
-                provinceDescLabel.style.opacity = 1f;
-            }
-
-            ResetOutpostActionsUI();
-            ShowProvinceInfo();
-
-            // Find map controller if not assigned
+            // Find components if not assigned
             if (mapController == null)
             {
                 mapController = FindFirstObjectByType<RegionMapController>();
-            }
-
-            // Subscribe to map events
-            if (mapController != null)
-            {
-                mapController.OnRegionHovered.AddListener(OnProvinceHovered);
-                mapController.OnRegionSelected.AddListener(OnProvinceSelected);
-                UpdateMapInteractionSuppression(pointerOverHudInteractionZone);
             }
 
             if (dayNightController == null)
@@ -187,19 +113,8 @@ namespace Zarus.UI
             }
             else
             {
-                Debug.LogWarning("[GameHUD] DayNightCycleController not found; timer display will not reflect in-game time.");
+                Debug.LogWarning("[GameHUD] DayNightCycleController not found; timer display will not work.");
             }
-
-            if (buildOutpostButton != null)
-            {
-                buildOutpostButton.clicked += OnBuildOutpostClicked;
-            }
-
-            // Upgrade panel and income toast
-            openUpgradesButton = root.Q<Button>("OpenUpgradesButton");
-            incomeToast = root.Q<VisualElement>("IncomeToast");
-            incomeToastText = root.Q<Label>("IncomeToastText");
-            modalHost = root.Q<VisualElement>("ModalHost");
 
             if (openUpgradesButton != null)
             {
@@ -211,7 +126,7 @@ namespace Zarus.UI
             // Initialize displays
             UpdateTimer();
             
-            Debug.Log($"[GameHUD] Initialization complete. Timer text: '{timerValue?.text}', Timer visible: {timerValue?.visible}, Timer display: {timerValue?.style.display}");
+            Debug.Log($"[GameHUD] Modern bottom bar initialization complete.");
         }
 
         private void UpdateTimer()
@@ -225,20 +140,19 @@ namespace Zarus.UI
 
                 if (timerSubValueLabel != null)
                 {
-                    timerSubValueLabel.text = $"{timeText} | {GetTimeScaleDisplay()} speed";
+                    timerSubValueLabel.text = $"{timeText} | {GetTimeScaleDisplay()}";
                 }
 
                 if (timerDetailLabel != null)
                 {
                     timerDetailLabel.text = FormatDetailedDate(latestTimeSnapshot.DateTime);
                 }
-
             }
             else
             {
                 timerValue.text = "Day --";
-                if (timerSubValueLabel != null) timerSubValueLabel.text = "--:-- | – speed";
-                if (timerDetailLabel != null) timerDetailLabel.text = "Waiting for time";
+                if (timerSubValueLabel != null) timerSubValueLabel.text = "--:-- | --";
+                if (timerDetailLabel != null) timerDetailLabel.text = "Starting...";
             }
         }
 
@@ -258,7 +172,7 @@ namespace Zarus.UI
             }
 
             var relative = scale / TimeScaleDisplayBaseline;
-            return string.Format(CultureInfo.InvariantCulture, "{0:0.#}x", relative);
+            return string.Format(CultureInfo.InvariantCulture, "{0:0.#}x speed", relative);
         }
 
         private static string FormatDetailedDate(System.DateTime dateTime)
@@ -286,72 +200,6 @@ namespace Zarus.UI
             };
         }
 
-        private void ShowProvinceInfo()
-        {
-            if (provinceInfoContainer == null)
-            {
-                return;
-            }
-
-            if (!provinceInfoContainer.ClassListContains("hud-province-info--visible"))
-            {
-                provinceInfoContainer.AddToClassList("hud-province-info--visible");
-            }
-        }
-
-        private void OnProvinceHovered(RegionEntry region)
-        {
-            if (region == null) return;
-
-            // Only show hover when nothing is selected
-            if (selectedRegion != null) return;
-
-            if (provinceNameLabel != null)
-                provinceNameLabel.text = region.DisplayName.ToUpper();
-
-            if (provinceDescLabel != null)
-                provinceDescLabel.text = !string.IsNullOrEmpty(region.Description)
-                    ? region.Description
-                    : "Hover over to explore";
-        }
-
-        private void OnProvinceSelected(RegionEntry region)
-        {
-            if (region == null)
-            {
-                selectedRegion = null;
-                ResetOutpostActionsUI();
-                RefreshSelectedProvinceState();
-                return;
-            }
-
-            selectedRegion = region;
-
-            // Mark province as visited
-            if (!visitedProvinces.Contains(region.RegionId))
-            {
-                visitedProvinces.Add(region.RegionId);
-                Debug.Log($"[GameHUD] Province visited: {region.DisplayName}");
-            }
-
-            // Update info display
-            if (provinceNameLabel != null)
-            {
-                provinceNameLabel.text = $"★ {region.DisplayName.ToUpper()} ★";
-            }
-
-            if (provinceDescLabel != null)
-            {
-                string desc = !string.IsNullOrEmpty(region.Description)
-                    ? region.Description
-                    : string.Empty;
-                provinceDescLabel.text = desc;
-            }
-
-            ShowProvinceInfo();
-            RefreshSelectedProvinceState();
-        }
-
         private void HookOutbreakSimulationEvents()
         {
             if (simulationEventsHooked)
@@ -366,12 +214,11 @@ namespace Zarus.UI
 
             if (outbreakSimulation == null)
             {
-                Debug.LogWarning("[GameHUD] OutbreakSimulationController not found; cure HUD widgets will remain inactive.");
+                Debug.LogWarning("[GameHUD] OutbreakSimulationController not found; cure and budget displays will not work.");
                 return;
             }
 
             outbreakSimulation.GlobalStateChanged += HandleGlobalStateChanged;
-            outbreakSimulation.ProvinceStateChanged += HandleProvinceStateChanged;
             outbreakSimulation.DailyIncomeReceived += HandleDailyIncomeReceived;
             simulationEventsHooked = true;
 
@@ -379,8 +226,6 @@ namespace Zarus.UI
             {
                 HandleGlobalStateChanged(outbreakSimulation.GlobalState);
             }
-
-            RefreshSelectedProvinceState();
         }
 
         private void HandleGlobalStateChanged(GlobalCureState state)
@@ -401,354 +246,16 @@ namespace Zarus.UI
             if (cureProgressDetailsLabel != null)
             {
                 cureProgressDetailsLabel.text = string.Format(CultureInfo.InvariantCulture,
-                    "Researching cure – {0} active / {1} total",
-                    activeOutposts,
-                    totalOutposts);
-            }
-
-            if (outpostCountLabel != null)
-            {
-                outpostCountLabel.text = string.Format(CultureInfo.InvariantCulture,
-                    "Outposts: {0} active / {1} total",
-                    activeOutposts,
-                    totalOutposts);
+                    "{0:0}% complete • {1} outposts active",
+                    progressPercent,
+                    activeOutposts);
             }
 
             if (zarBalanceLabel != null)
             {
                 var balance = state?.ZarBalance ?? 0;
-                zarBalanceLabel.text = string.Format(CultureInfo.InvariantCulture, "Budget: R {0}", balance);
+                zarBalanceLabel.text = string.Format(CultureInfo.InvariantCulture, "R {0}", balance);
             }
-
-            UpdateBuildControls();
-        }
-
-        private void HandleProvinceStateChanged(ProvinceInfectionState province)
-        {
-            if (province == null || string.IsNullOrEmpty(SelectedRegionId))
-            {
-                return;
-            }
-
-            if (!string.Equals(province.RegionId, SelectedRegionId, StringComparison.OrdinalIgnoreCase))
-            {
-                return;
-            }
-
-            UpdateProvinceOutpostDisplay(province);
-        }
-
-        private void RefreshSelectedProvinceState()
-        {
-            if (outbreakSimulation == null || string.IsNullOrEmpty(SelectedRegionId))
-            {
-                UpdateProvinceOutpostDisplay(null);
-                return;
-            }
-
-            if (outbreakSimulation.TryGetProvinceState(SelectedRegionId, out var province))
-            {
-                UpdateProvinceOutpostDisplay(province);
-            }
-            else
-            {
-                UpdateProvinceOutpostDisplay(null);
-            }
-        }
-
-        private void UpdateProvinceOutpostDisplay(ProvinceInfectionState state)
-        {
-            if (provinceInfectionLabel != null)
-            {
-                if (state == null)
-                {
-                    provinceInfectionLabel.text = "Infection: --%";
-                }
-                else
-                {
-                    var percent = Mathf.RoundToInt(Mathf.Clamp01(state.Infection01) * 100f);
-                    provinceInfectionLabel.text = string.Format(CultureInfo.InvariantCulture, "Infection: {0}%", percent);
-                }
-            }
-
-            if (state == null)
-            {
-                if (selectedRegion == null)
-                {
-                    SetNoProvinceSelectedText();
-                }
-
-                var defaultText = string.IsNullOrEmpty(SelectedRegionId) ? "Select a province" : "No outbreak data";
-                SetOutpostStatusText(defaultText, "hud-outpost-status--none");
-                UpdateBuildControls();
-                return;
-            }
-
-            if (!state.HasOutpost)
-            {
-                SetOutpostStatusText("No outposts here", "hud-outpost-status--none");
-            }
-            else if (state.OutpostDisabled)
-            {
-                var percent = Mathf.RoundToInt(Mathf.Clamp01(state.Infection01) * 100f);
-                var disabledText = string.Format(CultureInfo.InvariantCulture,
-                    "{0} outposts DISABLED at {1}% infection",
-                    state.OutpostCount,
-                    percent);
-                SetOutpostStatusText(disabledText, "hud-outpost-status--disabled");
-            }
-            else
-            {
-                var activeText = string.Format(CultureInfo.InvariantCulture,
-                    "{0} outposts ACTIVE",
-                    state.OutpostCount);
-                SetOutpostStatusText(activeText, "hud-outpost-status--active");
-            }
-
-            UpdateBuildControls(state);
-        }
-
-        private void RegisterHudPointerGuards(VisualElement root)
-        {
-            if (root == null || hudInteractionBlockRegion == null)
-            {
-                return;
-            }
-
-            root.RegisterCallback<PointerMoveEvent>(HandleHudPointerMove);
-            root.RegisterCallback<PointerLeaveEvent>(HandleHudPointerLeave);
-        }
-
-        private void HandleHudPointerMove(PointerMoveEvent evt)
-        {
-            if (hudInteractionBlockRegion == null)
-            {
-                return;
-            }
-
-            var pointerPosition = new Vector2(evt.position.x, evt.position.y);
-            var isInsideHud = hudInteractionBlockRegion.worldBound.Contains(pointerPosition);
-            if (isInsideHud == pointerOverHudInteractionZone)
-            {
-                return;
-            }
-
-            pointerOverHudInteractionZone = isInsideHud;
-            UpdateMapInteractionSuppression(pointerOverHudInteractionZone);
-        }
-
-        private void HandleHudPointerLeave(PointerLeaveEvent evt)
-        {
-            if (!pointerOverHudInteractionZone)
-            {
-                return;
-            }
-
-            pointerOverHudInteractionZone = false;
-            UpdateMapInteractionSuppression(false);
-        }
-
-        private void UpdateMapInteractionSuppression(bool shouldSuppress)
-        {
-            if (mapController == null || mapInteractionSuppressedByHud == shouldSuppress)
-            {
-                return;
-            }
-
-            mapInteractionSuppressedByHud = shouldSuppress;
-            mapController.SetInteractionEnabled(!mapInteractionSuppressedByHud);
-        }
-
-        private void UpdateBuildControls(ProvinceInfectionState provinceState = null)
-        {
-            if (buildOutpostButton == null)
-            {
-                return;
-            }
-
-            if (outbreakSimulation == null || selectedRegion == null)
-            {
-                buildOutpostButton.SetEnabled(false);
-                if (buildOutpostCostLabel != null)
-                {
-                    buildOutpostCostLabel.text = "Cost: R --";
-                }
-
-                return;
-            }
-
-            provinceState ??= (outbreakSimulation.TryGetProvinceState(selectedRegion.RegionId, out var fetchedState)
-                ? fetchedState
-                : null);
-
-            if (provinceState == null)
-            {
-                buildOutpostButton.SetEnabled(false);
-                if (buildOutpostCostLabel != null)
-                {
-                    buildOutpostCostLabel.text = "Cost: R --";
-                }
-
-                return;
-            }
-
-            var canBuild = outbreakSimulation.CanBuildOutpost(selectedRegion.RegionId, out var costR, out _);
-            buildOutpostButton.SetEnabled(canBuild);
-            if (buildOutpostCostLabel != null)
-            {
-                buildOutpostCostLabel.text = string.Format(CultureInfo.InvariantCulture, "Cost: R {0}", costR);
-            }
-        }
-
-        private void ResetOutpostActionsUI()
-        {
-            SetNoProvinceSelectedText();
-            SetOutpostStatusText("Select a province", "hud-outpost-status--none");
-            if (provinceInfectionLabel != null)
-            {
-                provinceInfectionLabel.text = "Infection: --%";
-            }
-
-            if (buildOutpostCostLabel != null)
-            {
-                buildOutpostCostLabel.text = "Cost: R --";
-            }
-
-            buildOutpostButton?.SetEnabled(false);
-        }
-
-        private void SetNoProvinceSelectedText()
-        {
-            if (provinceNameLabel != null)
-            {
-                provinceNameLabel.text = "NO PROVINCE SELECTED";
-            }
-
-            if (provinceDescLabel != null)
-            {
-                provinceDescLabel.text = "Select a province to view details";
-            }
-        }
-
-        private void SetOutpostStatusText(string text, string statusClass)
-        {
-            if (outpostStatusLabel == null)
-            {
-                return;
-            }
-
-            outpostStatusLabel.text = text;
-            ApplyOutpostStatusClass(statusClass);
-        }
-
-        private void ApplyOutpostStatusClass(string className)
-        {
-            if (outpostStatusLabel == null)
-            {
-                return;
-            }
-
-            foreach (var cls in OutpostStatusClasses)
-            {
-                outpostStatusLabel.RemoveFromClassList(cls);
-            }
-
-            if (!string.IsNullOrEmpty(className))
-            {
-                outpostStatusLabel.AddToClassList(className);
-            }
-        }
-
-        private void OnBuildOutpostClicked()
-        {
-            if (outbreakSimulation == null || selectedRegion == null)
-            {
-                return;
-            }
-
-            var regionId = selectedRegion.RegionId;
-            var canBuild = outbreakSimulation.CanBuildOutpost(regionId, out var costR, out var error);
-
-            if (buildOutpostCostLabel != null)
-            {
-                buildOutpostCostLabel.text = string.Format(CultureInfo.InvariantCulture, "Cost: R {0}", costR);
-            }
-
-            if (!canBuild)
-            {
-                DisplayOutpostBuildError(error, costR);
-                UpdateBuildControls();
-                return;
-            }
-
-            if (outbreakSimulation.TryBuildOutpost(regionId, out _, out var buildError))
-            {
-                RefreshSelectedProvinceState();
-                if (outbreakSimulation.GlobalState != null)
-                {
-                    HandleGlobalStateChanged(outbreakSimulation.GlobalState);
-                }
-
-                UpdateBuildControls();
-                return;
-            }
-
-            DisplayOutpostBuildError(buildError, costR);
-            UpdateBuildControls();
-        }
-
-        private void DisplayOutpostBuildError(OutbreakSimulationController.OutpostBuildError error, int costR)
-        {
-            switch (error)
-            {
-                case OutbreakSimulationController.OutpostBuildError.NotEnoughZar:
-                    SetOutpostStatusText(string.Format(CultureInfo.InvariantCulture, "Not enough budget (R {0} needed)", costR),
-                        "hud-outpost-status--disabled");
-                    break;
-                case OutbreakSimulationController.OutpostBuildError.ProvinceFullyInfected:
-                    SetOutpostStatusText("Province fully infected – cannot deploy", "hud-outpost-status--disabled");
-                    break;
-                case OutbreakSimulationController.OutpostBuildError.InvalidRegion:
-                    SetOutpostStatusText("Unknown province – cannot deploy", "hud-outpost-status--disabled");
-                    break;
-            }
-        }
-
-        /// <summary>
-        /// Resets the game timer.
-        /// </summary>
-        public void ResetTimer()
-        {
-            dayNightController?.RestartCycle();
-        }
-
-        /// <summary>
-        /// Resets the visited provinces counter.
-        /// </summary>
-        public void ResetVisitedProvinces()
-        {
-            visitedProvinces.Clear();
-        }
-
-        /// <summary>
-        /// Gets the current game time in seconds.
-        /// </summary>
-        public float GetGameTime()
-        {
-            if (!hasTimeSnapshot)
-            {
-                return 0f;
-            }
-
-            return latestTimeSnapshot.TimeOfDayMinutes * 60f;
-        }
-
-        /// <summary>
-        /// Gets the number of provinces visited.
-        /// </summary>
-        public int GetVisitedProvincesCount()
-        {
-            return visitedProvinces.Count;
         }
 
         private void OnOpenUpgradesClicked()
@@ -801,24 +308,39 @@ namespace Zarus.UI
             scheduledToastHide?.Pause();
 
             incomeToastText.text = string.Format(CultureInfo.InvariantCulture, "+R {0} Daily Income", amount);
-            incomeToast.AddToClassList("hud-toast--visible");
+            incomeToast.AddToClassList("income-toast--visible");
 
             // Schedule hide after delay
             scheduledToastHide = incomeToast.schedule.Execute(() =>
             {
-                incomeToast.RemoveFromClassList("hud-toast--visible");
+                incomeToast.RemoveFromClassList("income-toast--visible");
             }).StartingIn(3000);
+        }
+
+        /// <summary>
+        /// Resets the game timer.
+        /// </summary>
+        public void ResetTimer()
+        {
+            dayNightController?.RestartCycle();
+        }
+
+        /// <summary>
+        /// Gets the current game time in seconds.
+        /// </summary>
+        public float GetGameTime()
+        {
+            if (!hasTimeSnapshot)
+            {
+                return 0f;
+            }
+
+            return latestTimeSnapshot.TimeOfDayMinutes * 60f;
         }
 
         private void OnDestroy()
         {
             // Unsubscribe from events
-            if (mapController != null)
-            {
-                mapController.OnRegionHovered.RemoveListener(OnProvinceHovered);
-                mapController.OnRegionSelected.RemoveListener(OnProvinceSelected);
-            }
-
             if (dayNightController != null)
             {
                 dayNightController.TimeUpdated -= HandleTimeUpdated;
@@ -827,7 +349,6 @@ namespace Zarus.UI
             if (simulationEventsHooked && outbreakSimulation != null)
             {
                 outbreakSimulation.GlobalStateChanged -= HandleGlobalStateChanged;
-                outbreakSimulation.ProvinceStateChanged -= HandleProvinceStateChanged;
                 outbreakSimulation.DailyIncomeReceived -= HandleDailyIncomeReceived;
                 simulationEventsHooked = false;
             }
@@ -842,23 +363,6 @@ namespace Zarus.UI
                 upgradePanelController.OnClosed -= HandleUpgradePanelClosed;
                 upgradePanelController.Dispose();
                 upgradePanelController = null;
-            }
-
-            if (buildOutpostButton != null)
-            {
-                buildOutpostButton.clicked -= OnBuildOutpostClicked;
-            }
-
-            if (rootElement != null)
-            {
-                rootElement.UnregisterCallback<PointerMoveEvent>(HandleHudPointerMove);
-                rootElement.UnregisterCallback<PointerLeaveEvent>(HandleHudPointerLeave);
-            }
-
-            if (mapInteractionSuppressedByHud && mapController != null)
-            {
-                mapController.SetInteractionEnabled(true);
-                mapInteractionSuppressedByHud = false;
             }
         }
     }

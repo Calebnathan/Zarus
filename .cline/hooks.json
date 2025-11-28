@@ -1,0 +1,188 @@
+{
+  "hooks": {
+    "pre-commit": {
+      "description": "Quality checks before committing Unity code",
+      "commands": [
+        {
+          "name": "unity-console-check",
+          "description": "Check Unity Console for errors and warnings",
+          "mcp_tool": "unity/read_console",
+          "args": {
+            "action": "get",
+            "types": ["error", "warning"],
+            "count": 50
+          },
+          "fail_on_error": true
+        },
+        {
+          "name": "validate-scripts",
+          "description": "Validate all C# scripts in the project",
+          "mcp_tool": "unity/script_apply_edits",
+          "args": {
+            "validation_only": true
+          },
+          "fail_on_error": true
+        },
+        {
+          "name": "run-edit-mode-tests",
+          "description": "Run Unity Edit Mode tests",
+          "mcp_tool": "unity/run_tests",
+          "args": {
+            "mode": "EditMode",
+            "timeout_seconds": "60"
+          },
+          "fail_on_error": true
+        }
+      ]
+    },
+    "post-merge": {
+      "description": "Actions to take after merging code",
+      "commands": [
+        {
+          "name": "refresh-unity-assets",
+          "description": "Refresh Unity asset database",
+          "mcp_resource": "unity://editor/state",
+          "validation": "check_editor_running"
+        },
+        {
+          "name": "rebuild-region-assets",
+          "description": "Rebuild region assets if GIS data changed",
+          "mcp_tool": "unity/execute_menu_item",
+          "args": {
+            "menu_path": "Zarus/Map/Rebuild Region Assets"
+          },
+          "condition": "files_changed",
+          "file_patterns": ["Assets/Sprites/za.json", "Assets/Map/**"]
+        }
+      ]
+    },
+    "pre-build": {
+      "description": "Pre-build validation and setup",
+      "commands": [
+        {
+          "name": "validate-build-settings",
+          "description": "Validate Unity build settings",
+          "mcp_tool": "unity/manage_scene",
+          "args": {
+            "action": "get_build_settings"
+          }
+        },
+        {
+          "name": "run-play-mode-tests",
+          "description": "Run Unity Play Mode tests before build",
+          "mcp_tool": "unity/run_tests",
+          "args": {
+            "mode": "PlayMode",
+            "timeout_seconds": "120"
+          },
+          "fail_on_error": true
+        },
+        {
+          "name": "check-assembly-references",
+          "description": "Validate assembly definition references",
+          "validate_asmdef": true,
+          "paths": [
+            "Assets/Scripts/Map/Zarus.Map.asmdef",
+            "Assets/Scripts/Systems/Zarus.Systems.asmdef",
+            "Assets/UI/Scripts/Zarus.UI.asmdef"
+          ]
+        }
+      ]
+    },
+    "on-file-save": {
+      "description": "Actions when specific files are saved",
+      "triggers": [
+        {
+          "file_pattern": "Assets/Scripts/**/*.cs",
+          "commands": [
+            {
+              "name": "auto-validate-script",
+              "description": "Auto-validate C# script on save",
+              "mcp_tool": "unity/validate_script",
+              "args": {
+                "uri": "${file_path}",
+                "level": "basic"
+              }
+            }
+          ]
+        },
+        {
+          "file_pattern": "Assets/UI/Layouts/**/*.uxml",
+          "commands": [
+            {
+              "name": "validate-uxml-syntax",
+              "description": "Validate UXML syntax",
+              "custom_validation": "uxml_syntax_check"
+            }
+          ]
+        },
+        {
+          "file_pattern": "Assets/UI/Styles/**/*.uss",
+          "commands": [
+            {
+              "name": "validate-uss-syntax",
+              "description": "Validate USS syntax",
+              "custom_validation": "uss_syntax_check"
+            }
+          ]
+        }
+      ]
+    },
+    "daily-maintenance": {
+      "description": "Daily maintenance tasks",
+      "schedule": "daily",
+      "commands": [
+        {
+          "name": "cleanup-temp-files",
+          "description": "Clean up Unity temporary files",
+          "shell_command": "find . -name '*.tmp' -type f -delete"
+        },
+        {
+          "name": "update-dependencies",
+          "description": "Check for package manager updates",
+          "mcp_tool": "unity/execute_menu_item",
+          "args": {
+            "menu_path": "Window/Package Manager"
+          }
+        },
+        {
+          "name": "backup-project-settings",
+          "description": "Backup critical project settings",
+          "mcp_tool": "github.com/github/github-mcp-server/create_or_update_file",
+          "args": {
+            "path": "Backup/ProjectSettings-${date}.txt",
+            "content": "${project_settings_backup}",
+            "branch": "backup/settings",
+            "message": "Daily backup of project settings"
+          }
+        }
+      ]
+    }
+  },
+  "custom_validations": {
+    "uxml_syntax_check": {
+      "regex_patterns": [
+        {
+          "pattern": "<\\w+(?:\\s+\\w+=\"[^\"]*\")*\\s*/?>",
+          "description": "Basic UXML tag validation"
+        }
+      ]
+    },
+    "uss_syntax_check": {
+      "regex_patterns": [
+        {
+          "pattern": "\\.[a-zA-Z][a-zA-Z0-9-_]*\\s*\\{[^}]*\\}",
+          "description": "Basic USS selector validation"
+        }
+      ]
+    }
+  },
+  "environment_checks": {
+    "unity_running": {
+      "mcp_resource": "unity://editor/state"
+    },
+    "github_authenticated": {
+      "mcp_tool": "github.com/github/github-mcp-server/get_me"
+    }
+  }
+}

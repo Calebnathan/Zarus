@@ -7,56 +7,59 @@
     
     <ui:Style src="../../Styles/MainTheme.uss" />
     
-    <!-- Game HUD Screen -->
-    <ui:VisualElement name="GameHUDRoot" class="hud-container">
+    <!-- Split HUD - Top & Bottom -->
+    <ui:VisualElement name="GameHUDRoot" class="split-hud-container">
         
         <!-- Top Bar -->
-        <ui:VisualElement name="TopBar" class="hud-top">
+        <ui:VisualElement name="TopBar" class="top-hud">
             
-            <!-- Left Stats Group -->
-            <ui:VisualElement name="LeftStats" class="hud-left-column">
-                
-                <!-- Combined Global Status Card -->
-                <ui:VisualElement name="GlobalStatusCard" class="hud-card hud-card--stack">
-                    
-                    <!-- Global Timer -->
-                    <ui:VisualElement name="TimerStat" class="hud-card__section hud-stat--vertical">
-                        <ui:Label text="Day --" name="TimerValue" class="hud-stat__value" style="color: #e9f1ff;"/>
-                        <ui:Label text="--:-- | 1x" name="TimerSubValue" class="hud-timer-detail" />
-                        <ui:Label text="Jan 1st 2000" name="TimerDetail" class="hud-timer-detail" />
-                    </ui:VisualElement>
-
-                    <ui:VisualElement class="hud-divider" />
-
-                    <!-- Cure Progress -->
-                    <ui:VisualElement name="CureProgressStat" class="hud-card__section hud-stat--vertical hud-cure-progress">
-                        <ui:Label text="CURE PROGRESS" name="CureProgressLabel" class="hud-stat__label" />
-                        <ui:ProgressBar lowValue="0" highValue="100" value="0" name="CureProgressBar" class="hud-cure-progress__bar" />
-                        <ui:Label text="Racing outbreak – 0 outposts" name="CureProgressDetailsLabel" class="hud-timer-detail" />
-                    </ui:VisualElement>
-
-                    <ui:VisualElement class="hud-divider" />
-
-                    <!-- Outpost Summary -->
-                    <ui:VisualElement name="OutpostSummaryStat" class="hud-card__section hud-card__section--flush hud-stat--vertical hud-outpost-summary">
-                        <ui:Label text="Outposts: 0 active / 0 total" name="OutpostCountLabel" class="hud-stat__value" />
-                        <ui:Label text="Budget: R 0" name="ZarBalanceLabel" class="hud-timer-detail" />
-                        <ui:Button name="OpenUpgradesButton" text="Upgrades" class="hud-button hud-button--secondary hud-stack-item--sm" style="margin-top: 8px;" />
-                    </ui:VisualElement>
-
+            <!-- Left Section - Time & Day (Inline) -->
+            <ui:VisualElement name="TimeSection" class="top-hud__section" style="flex-direction: row; align-items: center;">
+                <ui:Label name="TimerValue" text="Day 1" class="top-hud__primary-text" style="margin-right: 12px;" />
+                <ui:Label name="TimerSubValue" text="08:30 | 1.5x" class="top-hud__secondary-text" style="margin-right: 8px;" />
+                <ui:Label name="TimerDetail" text="Jan 1st 2025" class="top-hud__tertiary-text" />
+            </ui:VisualElement>
+            
+            <!-- Right Section - Game Controls (Inline) -->
+            <ui:VisualElement name="GameControlsSection" class="top-hud__section--right" style="align-items: center;">
+                <ui:Label text="ESC - Menu" class="top-hud__hint" style="margin-right: 8px;" />
+                <ui:Button name="OpenUpgradesButton" text="Research Lab" class="top-hud__button" style="margin-right: 0;" />
+            </ui:VisualElement>
+            
+        </ui:VisualElement>
+        
+        <!-- Bottom Bar -->
+        <ui:VisualElement name="BottomBar" class="bottom-hud">
+            
+            <!-- Left Section - Budget (Inline) -->
+            <ui:VisualElement name="BudgetSection" class="bottom-hud__section" style="flex-direction: row; align-items: center;">
+                <ui:Label text="BUDGET" class="bottom-hud__label" style="margin-right: 6px; margin-bottom: 0;" />
+                <ui:Label name="ZarBalanceLabel" text="R 1,000" class="bottom-hud__primary-text" />
+            </ui:VisualElement>
+            
+            <!-- Center Section - Cure Progress (More Compact) -->
+            <ui:VisualElement name="CureSection" class="bottom-hud__section--center" style="align-items: center;">
+                <ui:VisualElement style="flex-direction: row; align-items: center; margin-bottom: 2px;">
+                    <ui:Label text="CURE PROGRESS" class="bottom-hud__label" style="margin-right: 8px; margin-bottom: 0;" />
+                    <ui:Label name="CureProgressDetailsLabel" text="0% • 0 outposts" class="bottom-hud__secondary-text" />
                 </ui:VisualElement>
-                
+                <ui:ProgressBar lowValue="0" highValue="100" value="0" name="CureProgressBar" class="bottom-hud__progress-bar" style="margin: 2px 0;" />
+            </ui:VisualElement>
+            
+            <!-- Right Section - Status Info -->
+            <ui:VisualElement name="StatusSection" class="bottom-hud__section--right" style="align-items: center; justify-content: flex-end;">
+                <ui:Label text="Select province for details" class="bottom-hud__status-hint" />
             </ui:VisualElement>
             
         </ui:VisualElement>
         
         <!-- Income Toast Notification -->
-        <ui:VisualElement name="IncomeToast" class="hud-toast hud-toast--income">
-            <ui:Label name="IncomeToastText" text="+R 50 Daily Income" class="hud-toast__text" />
+        <ui:VisualElement name="IncomeToast" class="income-toast">
+            <ui:Label name="IncomeToastText" text="+R 50 Daily Income" class="income-toast__text" />
         </ui:VisualElement>
         
-        <!-- Modal Host for Overlays (Upgrade Panel, etc.) -->
-        <ui:VisualElement name="ModalHost" class="hud-modal-host hidden" />
+        <!-- Modal Host for Overlays -->
+        <ui:VisualElement name="ModalHost" class="modal-host hidden" />
         
     </ui:VisualElement>
     

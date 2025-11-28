@@ -1,0 +1,390 @@
+{
+  "workflows": {
+    "setup-new-feature": {
+      "description": "Set up a new feature branch and Unity components",
+      "parameters": {
+        "feature_name": {
+          "type": "string",
+          "required": true,
+          "description": "Name of the feature to implement"
+        },
+        "feature_type": {
+          "type": "string",
+          "enum": ["ui", "system", "map", "general"],
+          "default": "general",
+          "description": "Type of feature being implemented"
+        }
+      },
+      "steps": [
+        {
+          "name": "create-feature-branch",
+          "mcp_tool": "github.com/github/github-mcp-server/create_branch",
+          "args": {
+            "owner": "radicazz",
+            "repo": "Zarus",
+            "branch": "feature/${feature_name}",
+            "from_branch": "main"
+          }
+        },
+        {
+          "name": "create-feature-scene",
+          "mcp_tool": "unity/manage_scene",
+          "args": {
+            "action": "create",
+            "name": "Feature_${feature_name}",
+            "path": "Assets/Scenes/Features/"
+          },
+          "condition": "feature_type == 'system'"
+        },
+        {
+          "name": "create-feature-script",
+          "mcp_tool": "unity/create_script",
+          "args": {
+            "path": "Assets/Scripts/${feature_type}/${feature_name}Controller.cs",
+            "script_type": "MonoBehaviour",
+            "namespace": "Zarus.${feature_type}"
+          }
+        },
+        {
+          "name": "create-ui-layout",
+          "mcp_tool": "unity/manage_asset",
+          "args": {
+            "action": "create",
+            "path": "Assets/UI/Layouts/Screens/${feature_name}.uxml",
+            "asset_type": "UIDocument"
+          },
+          "condition": "feature_type == 'ui'"
+        },
+        {
+          "name": "create-ui-controller",
+          "mcp_tool": "unity/create_script",
+          "args": {
+            "path": "Assets/UI/Scripts/Screens/${feature_name}Controller.cs",
+            "script_type": "UIScreen",
+            "namespace": "Zarus.UI.Screens"
+          },
+          "condition": "feature_type == 'ui'"
+        }
+      ]
+    },
+    "deploy-to-github": {
+      "description": "Deploy and create PR for current development work",
+      "parameters": {
+        "pr_title": {
+          "type": "string",
+          "required": true,
+          "description": "Title for the pull request"
+        },
+        "pr_description": {
+          "type": "string",
+          "required": false,
+          "description": "Description for the pull request"
+        }
+      },
+      "steps": [
+        {
+          "name": "run-pre-deploy-tests",
+          "mcp_tool": "unity/run_tests",
+          "args": {
+            "mode": "EditMode",
+            "timeout_seconds": "120"
+          }
+        },
+        {
+          "name": "validate-all-scripts",
+          "shell_command": "find Assets/Scripts -name '*.cs' -exec echo 'Validating: {}' \\;",
+          "mcp_tool": "unity/validate_script",
+          "batch_operation": true
+        },
+        {
+          "name": "check-console-clean",
+          "mcp_tool": "unity/read_console",
+          "args": {
+            "action": "get",
+            "types": ["error"],
+            "count": 10
+          },
+          "fail_on_results": true
+        },
+        {
+          "name": "create-pull-request",
+          "mcp_tool": "github.com/github/github-mcp-server/create_pull_request",
+          "args": {
+            "owner": "radicazz",
+            "repo": "Zarus",
+            "title": "${pr_title}",
+            "body": "${pr_description}\n\nAuto-generated PR via Cline workflow",
+            "head": "${current_branch}",
+            "base": "main"
+          }
+        }
+      ]
+    },
+    "fix-unity-errors": {
+      "description": "Automated attempt to fix common Unity compilation errors",
+      "steps": [
+        {
+          "name": "read-console-errors",
+          "mcp_tool": "unity/read_console",
+          "args": {
+            "action": "get",
+            "types": ["error"],
+            "count": 20,
+            "include_stacktrace": true
+          }
+        },
+        {
+          "name": "analyze-and-fix",
+          "custom_action": "analyze_unity_errors",
+          "description": "Analyze errors and apply common fixes"
+        },
+        {
+          "name": "refresh-assets",
+          "mcp_tool": "unity/manage_editor",
+          "args": {
+            "action": "get_state"
+          }
+        },
+        {
+          "name": "recompile-check",
+          "mcp_tool": "unity/read_console",
+          "args": {
+            "action": "get",
+            "types": ["error"],
+            "count": 5
+          }
+        }
+      ]
+    },
+    "update-province-data": {
+      "description": "Update province/region data and regenerate assets",
+      "parameters": {
+        "source_file": {
+          "type": "string",
+          "required": false,
+          "default": "Assets/Sprites/za.json",
+          "description": "Path to the GIS data file"
+        }
+      },
+      "steps": [
+        {
+          "name": "backup-current-data",
+          "mcp_tool": "github.com/github/github-mcp-server/create_or_update_file",
+          "args": {
+            "path": "Backup/RegionData-${timestamp}.json",
+            "content": "${current_region_data}",
+            "branch": "backup/region-data",
+            "message": "Backup region data before update"
+          }
+        },
+        {
+          "name": "validate-gis-data",
+          "custom_action": "validate_geojson",
+          "args": {
+            "file_path": "${source_file}"
+          }
+        },
+        {
+          "name": "rebuild-region-assets",
+          "mcp_tool": "unity/execute_menu_item",
+          "args": {
+            "menu_path": "Zarus/Map/Rebuild Region Assets"
+          }
+        },
+        {
+          "name": "validate-region-database",
+          "mcp_tool": "unity/manage_asset",
+          "args": {
+            "action": "get_info",
+            "path": "Assets/Resources/Map/RegionDatabase.asset"
+          }
+        },
+        {
+          "name": "test-map-loading",
+          "mcp_tool": "unity/manage_scene",
+          "args": {
+            "action": "load",
+            "name": "Main"
+          }
+        }
+      ]
+    },
+    "optimize-ui-performance": {
+      "description": "Analyze and optimize UI performance",
+      "steps": [
+        {
+          "name": "analyze-ui-hierarchy",
+          "mcp_tool": "unity/manage_scene",
+          "args": {
+            "action": "get_hierarchy"
+          }
+        },
+        {
+          "name": "check-ui-elements",
+          "mcp_tool": "unity/manage_gameobject",
+          "args": {
+            "action": "find",
+            "search_method": "by_component",
+            "search_term": "UIDocument",
+            "find_all": true
+          }
+        },
+        {
+          "name": "validate-uxml-files",
+          "batch_operation": true,
+          "file_pattern": "Assets/UI/Layouts/**/*.uxml",
+          "custom_action": "validate_uxml_performance"
+        },
+        {
+          "name": "check-uss-efficiency",
+          "batch_operation": true,
+          "file_pattern": "Assets/UI/Styles/**/*.uss",
+          "custom_action": "check_uss_selectors"
+        },
+        {
+          "name": "generate-performance-report",
+          "custom_action": "generate_ui_performance_report"
+        }
+      ]
+    },
+    "setup-simulation-test": {
+      "description": "Set up a test scenario for outbreak simulation",
+      "parameters": {
+        "test_scenario": {
+          "type": "string",
+          "enum": ["fast_spread", "slow_spread", "controlled_outbreak", "pandemic"],
+          "required": true,
+          "description": "Type of simulation scenario to test"
+        },
+        "duration_days": {
+          "type": "number",
+          "default": 100,
+          "description": "Simulation duration in game days"
+        }
+      },
+      "steps": [
+        {
+          "name": "load-test-scene",
+          "mcp_tool": "unity/manage_scene",
+          "args": {
+            "action": "load",
+            "name": "Main"
+          }
+        },
+        {
+          "name": "configure-simulation",
+          "mcp_tool": "unity/manage_gameobject",
+          "args": {
+            "action": "find",
+            "search_method": "by_component",
+            "search_term": "OutbreakSimulationController"
+          }
+        },
+        {
+          "name": "set-test-parameters",
+          "mcp_tool": "unity/manage_gameobject",
+          "args": {
+            "action": "set_component_property",
+            "component_properties": {
+              "OutbreakSimulationController": {
+                "testScenario": "${test_scenario}",
+                "maxDuration": "${duration_days}"
+              }
+            }
+          }
+        },
+        {
+          "name": "start-simulation",
+          "mcp_tool": "unity/manage_editor",
+          "args": {
+            "action": "play"
+          }
+        },
+        {
+          "name": "monitor-simulation",
+          "custom_action": "monitor_outbreak_simulation",
+          "args": {
+            "duration": "${duration_days}",
+            "scenario": "${test_scenario}"
+          }
+        }
+      ]
+    },
+    "code-review-prep": {
+      "description": "Prepare code for review by running quality checks",
+      "steps": [
+        {
+          "name": "format-all-scripts",
+          "shell_command": "find Assets/Scripts -name '*.cs' -exec echo 'Formatting: {}' \\;",
+          "custom_action": "format_csharp_files"
+        },
+        {
+          "name": "run-static-analysis",
+          "custom_action": "run_static_analysis",
+          "args": {
+            "paths": ["Assets/Scripts/"]
+          }
+        },
+        {
+          "name": "check-naming-conventions",
+          "custom_action": "check_unity_naming_conventions"
+        },
+        {
+          "name": "validate-serializable-fields",
+          "custom_action": "check_serializable_fields"
+        },
+        {
+          "name": "generate-review-checklist",
+          "custom_action": "generate_code_review_checklist"
+        }
+      ]
+    }
+  },
+  "custom_actions": {
+    "analyze_unity_errors": {
+      "description": "Analyze Unity console errors and suggest fixes",
+      "implementation": "ai_assisted",
+      "common_fixes": {
+        "missing_reference": "Check for null references and missing component assignments",
+        "compilation_error": "Check for syntax errors and missing using statements", 
+        "assembly_reference": "Verify assembly definition references are correct"
+      }
+    },
+    "validate_geojson": {
+      "description": "Validate GeoJSON data structure",
+      "regex_validation": "^\\{\\s*\"type\"\\s*:\\s*\"FeatureCollection\"",
+      "required_fields": ["type", "features"]
+    },
+    "validate_uxml_performance": {
+      "description": "Check UXML files for performance issues",
+      "checks": [
+        "excessive_nesting",
+        "missing_class_attributes",
+        "inefficient_selectors"
+      ]
+    },
+    "check_uss_selectors": {
+      "description": "Analyze USS selectors for efficiency",
+      "performance_patterns": [
+        "avoid_universal_selectors",
+        "prefer_class_over_element_selectors",
+        "minimize_descendant_selectors"
+      ]
+    },
+    "monitor_outbreak_simulation": {
+      "description": "Monitor outbreak simulation progress and collect metrics",
+      "metrics": [
+        "infection_rate",
+        "recovery_rate",
+        "death_rate",
+        "population_immunity",
+        "economic_impact"
+      ]
+    }
+  },
+  "environment_variables": {
+    "UNITY_PROJECT_PATH": "/home/abusive/Coding/radicazz/Zarus",
+    "UNITY_LOG_LEVEL": "INFO",
+    "CLINE_WORKFLOW_TIMEOUT": "300"
+  }
+}

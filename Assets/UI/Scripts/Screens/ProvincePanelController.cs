@@ -38,6 +38,8 @@ namespace Zarus.UI
         private Label provinceNameLabel;
         private Label infectionValueLabel;
         private Label outpostStatusLabel;
+        private Label populationLabel;
+        private Label threatLevelLabel;
         private Button deployOutpostButton;
         private Label outpostCostLabel;
 
@@ -105,6 +107,8 @@ namespace Zarus.UI
             provinceNameLabel = root?.Q<Label>("ProvinceNameLabel");
             infectionValueLabel = root?.Q<Label>("InfectionValueLabel");
             outpostStatusLabel = root?.Q<Label>("OutpostStatusLabel");
+            populationLabel = root?.Q<Label>("PopulationLabel");
+            threatLevelLabel = root?.Q<Label>("ThreatLevelLabel");
             deployOutpostButton = root?.Q<Button>("DeployOutpostButton");
             outpostCostLabel = root?.Q<Label>("OutpostCostLabel");
 
@@ -189,11 +193,15 @@ namespace Zarus.UI
                 provinceNameLabel.text = $"★ {currentProvince.DisplayName.ToUpper()} ★";
             }
 
+            // Update additional province information
+            UpdateProvinceInfo(currentProvince);
+
             // Get province state from simulation
             if (outbreakSimulation != null && outbreakSimulation.TryGetProvinceState(currentProvince.RegionId, out var state))
             {
                 UpdateInfectionDisplay(state);
                 UpdateOutpostDisplay(state);
+                UpdateThreatLevel(state);
                 UpdateDeployButton();
             }
         }
@@ -291,6 +299,70 @@ namespace Zarus.UI
             }
         }
 
+        private void UpdateProvinceInfo(RegionEntry province)
+        {
+            if (populationLabel != null)
+            {
+                // Generate realistic population based on province bounds area
+                var area = province.Bounds.size.x * province.Bounds.size.y;
+                var population = Mathf.RoundToInt(area * 50000f); // Rough population density
+                
+                if (population >= 1000000)
+                {
+                    populationLabel.text = string.Format(CultureInfo.InvariantCulture, "{0:F1}M", population / 1000000f);
+                }
+                else if (population >= 1000)
+                {
+                    populationLabel.text = string.Format(CultureInfo.InvariantCulture, "{0:F0}K", population / 1000f);
+                }
+                else
+                {
+                    populationLabel.text = population.ToString(CultureInfo.InvariantCulture);
+                }
+            }
+        }
+
+        private void UpdateThreatLevel(ProvinceInfectionState state)
+        {
+            if (threatLevelLabel == null)
+            {
+                return;
+            }
+
+            // Clear existing classes
+            threatLevelLabel.RemoveFromClassList("province-stat__value--muted");
+            threatLevelLabel.RemoveFromClassList("province-stat__value--warning");
+            threatLevelLabel.RemoveFromClassList("province-stat__value--danger");
+            threatLevelLabel.RemoveFromClassList("province-stat__value--success");
+
+            // Determine threat level based on infection rate and outpost status
+            if (state.IsFullyInfected)
+            {
+                threatLevelLabel.text = "CRITICAL";
+                threatLevelLabel.AddToClassList("province-stat__value--danger");
+            }
+            else if (state.Infection01 >= 0.7f)
+            {
+                threatLevelLabel.text = "SEVERE";
+                threatLevelLabel.AddToClassList("province-stat__value--danger");
+            }
+            else if (state.Infection01 >= 0.4f)
+            {
+                threatLevelLabel.text = "MODERATE";
+                threatLevelLabel.AddToClassList("province-stat__value--warning");
+            }
+            else if (state.Infection01 >= 0.1f)
+            {
+                threatLevelLabel.text = "LOW";
+                threatLevelLabel.AddToClassList("province-stat__value--warning");
+            }
+            else
+            {
+                threatLevelLabel.text = "MINIMAL";
+                threatLevelLabel.AddToClassList("province-stat__value--success");
+            }
+        }
+
         private void OnDeployClicked()
         {
             if (currentProvince == null || outbreakSimulation == null)
@@ -335,8 +407,30 @@ namespace Zarus.UI
             screenPos.x += screenOffset.x;
             screenPos.y = Screen.height - screenPos.y + screenOffset.y; // Flip Y for UI coordinates
 
-            root.style.left = screenPos.x - (root.resolvedStyle.width / 2f);
-            root.style.top = screenPos.y;
+            // Get panel dimensions for clamping
+            var panelWidth = root.resolvedStyle.width;
+            var panelHeight = root.resolvedStyle.height;
+            
+            // If dimensions aren't resolved yet, use default values
+            if (panelWidth <= 0) panelWidth = 320f; // max-width from CSS
+            if (panelHeight <= 0) panelHeight = 200f; // estimated height
+            
+            // Define HUD safe zones (avoid overlapping with top and bottom bars)
+            const float topHudHeight = 48f;  // Top bar height
+            const float bottomHudHeight = 56f; // Bottom bar height
+            const float padding = 16f; // Additional padding from screen edges
+            
+            // Clamp to screen bounds with HUD avoidance
+            var clampedX = Mathf.Clamp(screenPos.x - (panelWidth / 2f), 
+                                      padding, 
+                                      Screen.width - panelWidth - padding);
+            
+            var clampedY = Mathf.Clamp(screenPos.y, 
+                                      topHudHeight + padding, 
+                                      Screen.height - bottomHudHeight - panelHeight - padding);
+
+            root.style.left = clampedX;
+            root.style.top = clampedY;
             root.style.position = Position.Absolute;
         }
 

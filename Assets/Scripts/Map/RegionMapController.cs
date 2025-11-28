@@ -349,6 +349,9 @@ namespace Zarus.Map
                     regionIdLookup[entry.RegionId] = runtime;
                 }
             }
+
+            // Center the map considering HUD bars
+            CenterMapForUI();
         }
 
         private void UpdateRegionAnimations(float deltaTime)
@@ -487,6 +490,14 @@ namespace Zarus.Map
 
         private void SetSelection(RegionRuntime runtime)
         {
+            // Check if clicking on already selected province to deselect
+            if (currentSelection == runtime)
+            {
+                ClearSelection();
+                autoFocusController?.FocusOnWholeMap();
+                return;
+            }
+
             if (!highlightSelection)
             {
                 onRegionSelected?.Invoke(runtime.Entry);
@@ -548,6 +559,51 @@ namespace Zarus.Map
             var containerGo = new GameObject("RegionContainer");
             containerGo.transform.SetParent(transform, false);
             regionContainer = containerGo.transform;
+        }
+
+        /// <summary>
+        /// Centers the map in the available screen space, accounting for HUD bars at top and bottom
+        /// </summary>
+        private void CenterMapForUI()
+        {
+            if (regionContainer == null || interactionCamera == null)
+            {
+                return;
+            }
+
+            // HUD dimensions (should match the values from MainTheme.uss and ProvincePanelController)
+            const float topHudHeight = 48f;
+            const float bottomHudHeight = 56f;
+            
+            // Calculate available screen space
+            var screenHeight = Screen.height;
+            var availableHeight = screenHeight - topHudHeight - bottomHudHeight;
+            var availableCenterY = topHudHeight + (availableHeight * 0.5f);
+            
+            // Convert screen center to world position
+            var screenCenter = new Vector3(Screen.width * 0.5f, availableCenterY, interactionCamera.nearClipPlane + 10f);
+            var worldCenter = interactionCamera.ScreenToWorldPoint(screenCenter);
+            
+            // Get map bounds to calculate offset needed
+            var mapWorldBounds = GetWorldBounds();
+            var currentMapCenter = mapWorldBounds.center;
+            
+            // Calculate offset to center the map
+            var offset = worldCenter - currentMapCenter;
+            offset.z = 0f; // Keep Z position unchanged
+            
+            // Apply the centering offset
+            regionContainer.position += offset;
+            
+            Debug.Log($"[RegionMapController] Centered map in UI space. Available height: {availableHeight}px, Center Y: {availableCenterY}px, Offset: {offset}");
+        }
+
+        /// <summary>
+        /// Public method to recenter the map (useful for runtime adjustments)
+        /// </summary>
+        public void RecenterMapForUI()
+        {
+            CenterMapForUI();
         }
 
         public void SetInteractionEnabled(bool enabled)
