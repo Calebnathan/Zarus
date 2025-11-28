@@ -41,18 +41,18 @@ Material:
         m_Offset: {x: 0, y: 0}
     m_Ints: []
     m_Floats:
-    - _Distortion: 0.808
+    - _Distortion: 0.763
     - _EnableExternalAlpha: 0
-    - _FoamStrength: 0.142
-    - _WaveScale: 17.9
-    - _WaveSpeed1: 0.31
-    - _WaveSpeed2: 0.13
+    - _FoamStrength: 0.075
+    - _WaveScale: 6.1
+    - _WaveSpeed1: 0.32
+    - _WaveSpeed2: 0.26
     - _ZWrite: 0
     m_Colors:
     - _Color: {r: 1, g: 1, b: 1, a: 1}
     - _DeepColor: {r: 0.02, g: 0.16999996, b: 0.31999996, a: 1}
-    - _HorizonColor: {r: 0, g: 0.34999996, b: 0.6, a: 1}
+    - _HorizonColor: {r: 0, g: 0.005318316, b: 0.7207546, a: 1}
     - _RendererColor: {r: 1, g: 1, b: 1, a: 1}
-    - _ShallowColor: {r: 0.18823525, g: 0.57146776, b: 0.8784314, a: 1}
+    - _ShallowColor: {r: 0.18536842, g: 0.51215523, b: 0.7735849, a: 1}
   m_BuildTextureStacks: []
   m_AllowLocking: 1
